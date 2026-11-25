@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>My Health · desktop + phone</title>
+<link rel="stylesheet" href="/device.css">
+</head>
+<body>
+<!-- Recording view: the live demo in a browser window and on a phone, side by side.
+     With "Sync tabs" on, switching tabs in one switches the other. -->
+<div class="stage"><div class="fit" id="fit">
+  <div class="browser">
+    <div class="chrome"><i></i><i></i><i></i><div class="url"><svg viewBox="0 0 10 12" aria-hidden="true"><path d="M2 5V3.5a3 3 0 0 1 6 0V5h.5A1.5 1.5 0 0 1 10 6.5v4A1.5 1.5 0 0 1 8.5 12h-7A1.5 1.5 0 0 1 0 10.5v-4A1.5 1.5 0 0 1 1.5 5zm1.5 0h3V3.5a1.5 1.5 0 0 0-3 0z"/></svg>palantir-show-and-tell-daniel-gur.vercel.app</div></div>
+    <iframe id="desk" src="/#today" title="My Health on desktop"></iframe>
+  </div>
+  <div class="device">
+    <div class="bezel">
+      <div class="screen">
+        <div class="status"><span class="time" id="clock">9:41</span><span class="island" aria-hidden="true"></span><span class="icons" aria-hidden="true">
+          <svg viewBox="0 0 18 12" width="18" height="12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+          <svg viewBox="0 0 16 12" width="16" height="12"><path d="M8 11.5 5.6 9a3.4 3.4 0 0 1 4.8 0zM3.5 6.9a6.4 6.4 0 0 1 9 0L11.1 8.3a4.4 4.4 0 0 0-6.2 0zM1.3 4.7a9.5 9.5 0 0 1 13.4 0l-1.4 1.4a7.5 7.5 0 0 0-10.6 0z"/></svg>
+          <svg viewBox="0 0 27 13" width="27" height="13"><rect x=".5" y=".5" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="9" rx="2"/><path d="M25 4.5v4a2 2 0 0 0 0-4z" opacity=".5"/></svg>
+        </span></div>
+        <iframe id="phone" src="/#today" title="My Health on a phone"></iframe>
+        <div class="home-bar" aria-hidden="true"></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+<div class="ctl"><label><input type="checkbox" id="sync" checked> Sync tabs</label><span>Synthetic data</span><span><kbd>H</kbd> hides this bar</span></div>
+<script>
+  const desk=document.getElementById('desk'), phone=document.getElementById('phone'), sync=document.getElementById('sync');
+  const c=document.getElementById('clock'), tick=()=>{ const d=new Date(); c.textContent=`${d.getHours()%12||12}:${String(d.getMinutes()).padStart(2,'0')}`; };
+  tick(); setInterval(tick, 15000);
+  // Fit both devices to the window (1920×1080 shows them at actual size)
+  const fit=document.getElementById('fit'), size=()=>{ const s=Math.min(1,(innerHeight-64)/880,(innerWidth-64)/(1280+56+421)); fit.style.transform=`scale(${s})`; };
+  addEventListener('resize',size); size();
+  // Tab sync: the app's tabs are URL hashes (#today, #gym ...), so mirror the hash across the two frames
+  const view=h=>(h||'').replace(/^#/,'').split(/[?&]/)[0];
+  function link(from,to){
+    from.addEventListener('load',()=>{
+      const w=from.contentWindow;
+      w.addEventListener('hashchange',()=>{ if(!sync.checked) return; const h=w.location.hash, o=to.contentWindow;
+        if(o && view(o.location.hash)!==view(h)){ o.location.hash=h; o.scrollTo(0,0); } });
+      w.addEventListener('keydown',e=>{ if((e.key==='h'||e.key==='H') && !e.target.closest('input,textarea,select,[contenteditable]')) document.body.classList.toggle('clean'); });
+    });
+  }
+  link(desk,phone); link(phone,desk);
+  addEventListener('keydown',e=>{ if(e.key==='h'||e.key==='H') document.body.classList.toggle('clean'); });
+</script>
+</body>
+</html>
