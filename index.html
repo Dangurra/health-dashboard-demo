@@ -784,6 +784,14 @@ nav.tabs a:nth-child(2){animation-delay:.06s}nav.tabs a:nth-child(3){animation-d
 .sign-off:hover span{transform:translateY(-4px)}
 footer{text-align:center}
 @media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none}nav.tabs a{animation:none}.sync-line i::after{animation:none!important}.sign-off span{transition:none}}
+.appt{display:grid;grid-template-columns:150px 1fr auto;gap:18px;padding:14px 0;border-top:1px solid var(--grid);align-items:start}
+.appt:first-child{border-top:0;padding-top:0}.appt:last-child{padding-bottom:0}
+.appt-when{display:flex;flex-direction:column;gap:2px;font-size:13px}
+.appt-when b{font-family:var(--serif);font-weight:400;font-size:26px;line-height:1.1}
+.appt-t{font-weight:600;font-size:15.5px}
+.appt-prep{margin:4px 0 0;padding-left:18px;font-size:13.5px;color:var(--ink-2)}
+.appt-prep li{margin:2px 0}
+@media (max-width:640px){.appt{grid-template-columns:1fr;gap:8px}.appt-when{flex-direction:row;align-items:baseline;gap:10px}.appt-when b{font-size:20px}}
 </style>
 </head>
 <body>
@@ -845,6 +853,11 @@ footer{text-align:center}
   <section id="issues">
     <div class="sec-head"><div><h2>Issues &amp; what to do</h2><p class="sub">Most urgent first. Tap a card to see what it means, what to do and what to ask your doctor.</p></div><button type="button" class="btn ghost sm" id="expand-all">Expand all</button></div>
     <div class="acc-list" id="issue-list"></div>
+  </section>
+
+  <section id="appointments">
+    <div class="sec-head"><div><h2>Appointments</h2><p class="sub">What's booked, what each visit is for, and how to prepare. Add any of them to your calendar.</p></div></div>
+    <div class="card" id="appt-list"></div>
   </section>
 
   <section id="followups">
@@ -1363,7 +1376,7 @@ function ring(p, val, label, goal, size){
 // it "starts" before 9 pm, or the bed-to-wake window is far longer than the time actually in bed.
 const realBed = n => { if(!n || n.bed==null) return false; if(n.bed<21) return false;
   if(n.wake!=null && n.inbed!=null){ const win=(n.wake+24)-n.bed; if(win>0 && n.inbed<win*0.6) return false; } return true; };
-const AREA_COL = {'Sleep':'#5b4cf5','Move':'#f0285a','Exercise':'#2fb944'}, AREA_MK = {'Sleep':'circle','Move':'triangle','Exercise':'square'};
+const AREA_COL = {'Sleep':'#0b0dff','Move':'#5557ff','Exercise':'#9fa0ff'}  // one brand blue in three shades, AREA_MK = {'Sleep':'circle','Move':'triangle','Exercise':'square'};
 function stackRings(areas, score){
   const S=200, c=S/2, sw=18, gap=4;
   const arcs=areas.map((a,i)=>{ const r=c-sw/2-2-i*(sw+gap), C=2*Math.PI*r, f=a.na?0:Math.max(0,Math.min(1,a.p)), col=AREA_COL[a.k];
@@ -1627,6 +1640,35 @@ const tl = [
  ['Apr – May 2027','<b>HbA1c recheck</b> (about 6 months) to see whether prediabetes is improving. Repeat <b>liver ultrasound</b> if ALT is still high.'],
  ['Oct 2027','<b>Annual physical:</b> CBC, CMP, lipids, A1c and vitamin D, plus annual flu shot.'],
 ];
+/* ---------- Appointments (demo: dates are set relative to today so they always look upcoming) ---------- */
+const APPTS = (function(){
+  const base=[
+    {d:2,  t:'17:30', len:20, title:'Flu & COVID vaccines', who:'Riverside Pharmacy', where:'Walk-in clinic counter', why:'Seasonal flu shot and the updated COVID vaccine.', prep:['Wear short sleeves','Bring your insurance card']},
+    {d:9,  t:'10:30', len:30, title:'Primary care visit', who:'Dr. Maya Patel · Lakeview Medical Group', where:'Suite 210', why:'Review cholesterol and liver results. Discuss a statin and a coronary calcium score.', prep:['Bring 7 days of home blood pressure readings','Ask: statin side effects, calcium score cost','List current meds: vitamin D3, cetirizine']},
+    {d:62, t:'08:00', len:15, title:'Vitamin D recheck (lab)', who:'Lakeview Medical Group · Lab', where:'Building B, 1st floor', why:'About 3 months after starting the supplement.', prep:['No fasting needed']},
+    {d:90, t:'07:45', len:15, title:'Fasting lipid panel + liver enzymes', who:'Lakeview Medical Group · Lab', where:'Building B, 1st floor', why:'Checks whether 3–4 months of diet and training moved LDL, triglycerides and ALT.', prep:['Nothing to eat for 9–12 hours (water is fine)','Book an early slot']},
+  ];
+  return base.map(a=>{ const x=new Date(); x.setHours(0,0,0,0); x.setDate(x.getDate()+a.d); const wd=x.getDay(); if(wd===6) x.setDate(x.getDate()+2); if(wd===0) x.setDate(x.getDate()+1);
+    const [h,m]=a.t.split(':').map(Number); x.setHours(h,m,0,0); return {...a, at:x}; }).sort((a,b)=>a.at-b.at);
+})();
+const apptDay = d => d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+const apptTime = d => d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}).toLowerCase();
+const apptIn = d => { const days=Math.round((new Date(d).setHours(0,0,0,0)-new Date().setHours(0,0,0,0))/864e5); return days<=0?'today':days===1?'tomorrow':`in ${days} days`; };
+function apptICS(a){ // download a calendar file for one appointment
+  const p=n=>String(n).padStart(2,'0'), f=d=>`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}T${p(d.getHours())}${p(d.getMinutes())}00`;
+  const end=new Date(+a.at+a.len*6e4), esc=t=>String(t).replace(/[,;\\]/g,m=>'\\'+m);
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//My Health demo//EN','BEGIN:VEVENT',`UID:${f(a.at)}-${a.title.replace(/\W+/g,'')}@myhealth-demo`,`DTSTAMP:${f(new Date())}`,`DTSTART:${f(a.at)}`,`DTEND:${f(end)}`,`SUMMARY:${esc(a.title)}`,`LOCATION:${esc(a.who+', '+a.where)}`,`DESCRIPTION:${esc(a.why+' Prep: '+a.prep.join('; '))}`,'END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const url=URL.createObjectURL(new Blob([ics],{type:'text/calendar'})), l=document.createElement('a'); l.href=url; l.download=a.title.replace(/[^\w ]+/g,'').trim().replace(/ +/g,'-')+'.ics'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+document.addEventListener('click', e=>{ const b=e.target.closest('[data-ics]'); if(b){ e.preventDefault(); apptICS(APPTS[+b.dataset.ics]); } });
+function renderAppts(){
+  const el=$('#appt-list'); if(!el) return;
+  el.innerHTML=APPTS.map((a,i)=>`<div class="appt"><div class="appt-when"><b>${a.at.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</b><span>${a.at.toLocaleDateString('en-US',{weekday:'short'})} · ${apptTime(a.at)}</span><span class="muted">${apptIn(a.at)}</span></div>
+    <div class="appt-body"><div class="appt-t">${esc(a.title)}</div><div class="muted" style="font-size:13.5px">${esc(a.who)} · ${esc(a.where)}</div><p style="margin:6px 0 4px;font-size:14px">${esc(a.why)}</p>
+    <ul class="appt-prep">${a.prep.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>
+    <div class="appt-act"><button type="button" class="btn ghost sm" data-ics="${i}">Add to calendar</button></div></div>`).join('');
+}
+
 /* ---------- Chart engine ---------- */
 function lineChart(el, pts, o={}){
   // pts: [{x:Date, v:number, label:string, sub?:string}]
@@ -2508,6 +2550,7 @@ $('#expand-all').addEventListener('click', e=>{ const all=[...document.querySele
 
 // Today view
 function renderToday(){
+  renderAppts();
   renderSyncCard();
   renderWeekCard();
   renderEval();
@@ -2536,7 +2579,12 @@ function renderToday(){
   const _si=shopItems(), shopAll=_si.length, shopGot=_si.filter(i=>shop.checked.includes(i.id)).length;
   $('#t-week').innerHTML = `<span class="eyebrow">This week</span><div class="stat3 grow"><div><b>${gd}/5</b><span>workouts</span></div><div><b>${wk}/7</b><span>check-ins</span></div><div><b>${shopGot}/${shopAll}</b><span>groceries</span></div></div><div class="actions"><a class="btn ghost sm" href="#gym" style="text-decoration:none">Gym</a><a class="btn ghost sm" href="#meals" style="text-decoration:none">Meals</a></div>`;
   $('#t-prio').innerHTML = `<span class="eyebrow">Top priorities</span>${issues.slice(0,4).map((i,k)=>`<a class="prio-row" href="#health" data-issue="${k}"><span class="pill ${i.s}" style="flex:none"><i></i>${sLabel[i.s]}</span><div><div class="prio-t">${i.t}</div><div class="prio-m">${i.m}</div></div></a>`).join('')}<div class="actions" style="margin-top:4px"><a class="btn ghost sm" href="#health" style="text-decoration:none">See all ${issues.length} issues</a></div>`;
-  $('#t-next').innerHTML = `<span class="eyebrow">Coming up</span>${tl.slice(0,3).map(([w,t])=>`<div style="font-size:14px;padding:6px 0;border-top:1px solid var(--grid)"><div style="font-weight:600">${w}</div><div class="muted">${t.replace(/<[^>]+>/g,'')}</div></div>`).join('')}<div class="actions"><a class="btn ghost sm" href="#health" data-anchor="followups" style="text-decoration:none">All follow-ups</a></div>`;
+  const nx=APPTS[0], later=APPTS.slice(1,3);
+  $('#t-next').innerHTML = `<span class="eyebrow">Next appointment · ${apptIn(nx.at)}</span><div class="big" style="font-size:22px">${esc(nx.title)}</div>
+    <div class="muted" style="font-size:13.5px">${apptDay(nx.at)} · ${apptTime(nx.at)}<br>${esc(nx.who)}</div>
+    <ul class="appt-prep" style="margin:8px 0 2px">${nx.prep.slice(0,2).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+    ${later.map(a=>`<div style="font-size:13.5px;padding:6px 0;border-top:1px solid var(--grid)"><b>${apptDay(a.at)}</b> <span class="muted">· ${esc(a.title)}</span></div>`).join('')}
+    <div class="actions"><button type="button" class="btn sm" data-ics="0">Add to calendar</button><a class="btn ghost sm" href="#health" data-anchor="appointments" style="text-decoration:none">All appointments</a></div>`;
   if(window.glossDecorate) window.glossDecorate();
 }
 document.addEventListener('click', e=>{
