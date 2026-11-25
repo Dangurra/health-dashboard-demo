@@ -719,7 +719,7 @@ nav.tabs a:not([aria-current=page]):hover,.subtabs button:not([aria-selected=tru
 
 <!-- ============ MY HEALTH ============ -->
 <div class="view" id="v-health" data-view="health" hidden>
-  <div class="view-head"><div><h1>My health</h1><p class="sub">Male, <span id="pf-age">34</span> · Lakeview Medical Group + Apple Health records (2016 → <span id="asof"></span>)</p></div></div>
+  <div class="view-head"><div><h1>My health</h1><p class="sub">Male, <span id="pf-age">26</span> · Lakeview Medical Group + Apple Health records (2016 → <span id="asof"></span>)</p></div></div>
   <div class="grid g4" id="kpis"></div>
 
   <details class="callout bigpic" id="bigpic">
@@ -914,7 +914,7 @@ nav.tabs a:not([aria-current=page]):hover,.subtabs button:not([aria-selected=tru
     </div>
     <div class="card">
       <h3>Demo data</h3>
-      <p class="muted" style="font-size:13.5px;margin:0 0 12px">This is a demo with a fictional patient. Your changes stay in this browser. Reset to bring back the sample check-ins, weigh-ins and workouts.</p>
+      <p class="muted" style="font-size:13.5px;margin:0 0 12px">This demo uses synthetic health data. Your changes stay in this browser. Reset to bring back the sample check-ins, weigh-ins and workouts.</p>
       <button type="button" class="btn ghost sm" id="demo-reset">Reset demo</button>
     </div>
     <div class="card">
@@ -966,7 +966,7 @@ nav.tabs a:not([aria-current=page]):hover,.subtabs button:not([aria-selected=tru
   </section>
 </div>
 
-<footer>Demo build. Every name, record and number on this page is synthetic. No real health data is used.</footer>
+<footer>Demo build. All health records, lab results and activity on this page are synthetic. No real health data is used.</footer>
 </main>
 
 <!-- ============ CHECK-IN POP-UP ============ -->
@@ -1025,9 +1025,9 @@ nav.tabs a:not([aria-current=page]):hover,.subtabs button:not([aria-selected=tru
 </dialog>
 
 <script>
-/* ---------- Demo seed: a fictional patient's recent activity, stored only in this browser ---------- */
+/* ---------- Demo seed: synthetic recent activity, stored only in this browser ---------- */
 var DEMO = (function(){
-  var VER = 'demo-seed-v1', DAY = 864e5;
+  var VER = 'demo-seed-v2', DAY = 864e5;
   var iso = function(d){ var x = new Date(d); x.setMinutes(x.getMinutes()-x.getTimezoneOffset()); return x.toISOString().slice(0,10); };
   var today = new Date(); today.setHours(12,0,0,0);
   var ago = function(n){ return new Date(+today - n*DAY); };
@@ -1080,7 +1080,7 @@ var DEMO = (function(){
   var put = function(k, v){ localStorage.setItem(k, JSON.stringify(v)); };
   try {
     put('health-journal-v1', journal);
-    put('kv-profile', { name: 'Jordan Lee', birthday: '1992-03-14', gym: 'Riverside Fitness', photo: '' });
+    put('kv-profile', { name: 'Daniel Gur', birthday: '2000-08-21', gym: 'Riverside Fitness', photo: '' });
     put('kv-weight-goal', { start: 212, goal: 192, startDate: out.startISO, targetDate: out.targetISO });
     put('kv-gym-log', gymLog); put('kv-gym-steps', gymSteps); put('kv-lifts', lifts); put('kv-swaps', {});
     localStorage.setItem('ci-dismissed', iso(today)); // don't pop the check-in over the dashboard on first visit
@@ -1486,7 +1486,7 @@ const imm=[
  ['COVID-19','Sep 2025','warning','Due: updated dose'],
  ['Tdap','Jun 2022','good','Current (to ~2032)'],
  ['Hepatitis B','Childhood series','good','Complete'],
- ['HPV (Gardasil 9)','2008 series','good','Complete'],
+ ['HPV (Gardasil 9)','2012 series','good','Complete'],
 ];
 $('#imm').innerHTML=imm.map(([n,d,s,t])=>`<tr><td>${n}</td><td class="n">${d}</td><td><span class="pill ${s}"><i></i>${t}</span></td></tr>`).join('');
 /* ---------- Gym & meals ---------- */
@@ -1630,7 +1630,7 @@ $('#day-detail').addEventListener('click', e=>{
 KVS.get('gym-steps').then(v=>{ if(v && typeof v==='object' && !Array.isArray(v)){ gymSteps=v; renderWeek(); } });
 
 /* ---------- Profile (Settings) ---------- */
-const PF_DEFAULT = {name:'Jordan Lee', birthday:'1992-03-14', gym:'Riverside Fitness', photo:''};
+const PF_DEFAULT = {name:'Daniel Gur', birthday:'2000-08-21', gym:'Riverside Fitness', photo:''};
 let profile = {...PF_DEFAULT}, pfPhoto = '';
 const PF_PHOTO_RE = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
 function pfClean(v){
