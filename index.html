@@ -754,6 +754,36 @@ nav.tabs a:not([aria-current=page]):hover,.subtabs button:not([aria-selected=tru
 .eval-med{display:inline-block;margin-top:14px;font-size:13.5px;color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
 .wd .ah{font:10.5px var(--mono);color:var(--muted);margin-top:auto;padding-top:4px}
 .rec-up{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
+
+/* ===== more from the portfolio ===== */
+/* Reveal: cards fade up with a stagger the first time they scroll into view (portfolio <Reveal>) */
+.rv{opacity:0;transform:translateY(24px)}
+.rv.in{opacity:1;transform:none;transition:opacity .7s cubic-bezier(.215,.61,.355,1),transform .7s cubic-bezier(.215,.61,.355,1);transition-delay:var(--rv-d,0s)}
+/* Bracket nav links blur in on load (portfolio <BracketLink>) */
+@keyframes blur-in{from{opacity:0;filter:blur(10px)}to{opacity:1;filter:blur(0)}}
+@media (min-width:761px){nav.tabs a{animation:blur-in .7s cubic-bezier(.25,.46,.45,.94) both}
+nav.tabs a:nth-child(2){animation-delay:.06s}nav.tabs a:nth-child(3){animation-delay:.12s}nav.tabs a:nth-child(4){animation-delay:.18s}nav.tabs a:nth-child(5){animation-delay:.24s}}
+/* Marker shapes (portfolio CategoryChip) */
+.mk{display:inline-flex;flex:none;width:10px;height:10px}
+.mk svg{width:100%;height:100%;display:block}
+.gl-cats button{display:inline-flex;align-items:center;gap:6px}
+/* Live dot pings while data is fresh (portfolio AvailabilityBadge) */
+.sync-line:not(.stale) i,.src-st.good i{position:relative}
+@keyframes ping{75%,100%{transform:scale(2.4);opacity:0}}
+.sync-line:not(.stale) i::after{content:"";position:absolute;inset:0;border-radius:50%;background:inherit;opacity:.75;animation:ping 1.6s cubic-bezier(0,0,.2,1) infinite}
+/* Pixel back-to-top (portfolio <BackToTop>) */
+#to-top{position:fixed;right:24px;bottom:24px;z-index:40;width:32px;height:32px;display:grid;place-items:center;border:0;background:var(--ink);color:var(--page);opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .2s,transform .2s,background-color .2s}
+#to-top.show{opacity:1;transform:none;pointer-events:auto}
+#to-top:hover,#to-top:focus-visible{background:var(--action);color:#fff}
+#to-top svg{width:7px;height:7px;transition:transform .2s}
+#to-top:hover svg{transform:translateY(-1px)}
+@media (max-width:760px){#to-top{bottom:calc(84px + env(safe-area-inset-bottom));right:16px}}
+/* Footer sign-off: the portfolio's colors as touching squares that hop on hover */
+.sign-off{display:flex;align-items:flex-end;justify-content:center;margin:0 0 14px}
+.sign-off span{display:block;width:8px;height:8px;transition:transform .2s ease-out}
+.sign-off:hover span{transform:translateY(-4px)}
+footer{text-align:center}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none}nav.tabs a{animation:none}.sync-line i::after{animation:none!important}.sign-off span{transition:none}}
 </style>
 </head>
 <body>
@@ -1056,8 +1086,9 @@ nav.tabs a:not([aria-current=page]):hover,.subtabs button:not([aria-selected=tru
   </section>
 </div>
 
-<footer>Demo build. All health records, lab results and activity on this page are synthetic. No real health data is used.</footer>
+<footer><div class="sign-off" aria-hidden="true"><span style="background:#e8ff00;transition-delay:0ms"></span><span style="background:#3b82f6;transition-delay:40ms"></span><span style="background:#ec4899;transition-delay:80ms"></span><span style="background:#14b8a6;transition-delay:120ms"></span><span style="background:#a855f7;transition-delay:160ms"></span><span style="background:#f97316;transition-delay:200ms"></span></div>Demo build. All health records, lab results and activity on this page are synthetic. No real health data is used.</footer>
 </main>
+<button type="button" id="to-top" aria-label="Back to top" tabindex="-1"><svg viewBox="0 0 7 7" shape-rendering="crispEdges" aria-hidden="true"><rect x="3" y="0" width="1" height="1" fill="currentColor"/><rect x="2" y="1" width="1" height="1" fill="currentColor"/><rect x="3" y="1" width="1" height="1" fill="currentColor"/><rect x="4" y="1" width="1" height="1" fill="currentColor"/><rect x="1" y="2" width="1" height="1" fill="currentColor"/><rect x="2" y="2" width="1" height="1" fill="currentColor"/><rect x="3" y="2" width="1" height="1" fill="currentColor"/><rect x="4" y="2" width="1" height="1" fill="currentColor"/><rect x="5" y="2" width="1" height="1" fill="currentColor"/><rect x="0" y="3" width="1" height="1" fill="currentColor"/><rect x="1" y="3" width="1" height="1" fill="currentColor"/><rect x="3" y="3" width="1" height="1" fill="currentColor"/><rect x="5" y="3" width="1" height="1" fill="currentColor"/><rect x="6" y="3" width="1" height="1" fill="currentColor"/><rect x="3" y="4" width="1" height="1" fill="currentColor"/><rect x="3" y="5" width="1" height="1" fill="currentColor"/><rect x="3" y="6" width="1" height="1" fill="currentColor"/></svg></button>
 
 <!-- ============ CHECK-IN POP-UP ============ -->
 <dialog id="checkin" aria-labelledby="ci-title">
@@ -1302,6 +1333,16 @@ function renderSyncCard(){
     </div>
     <p class="sync-line ${age&&age.stale?'stale':''}"><i></i>${age?(age.stale?`Last sync ${age.when}. Your phone sends new data whenever it's unlocked.`:`Synced ${age.when}`):'Not synced yet'}${src.length?` · ${esc(src.join(', '))}`:''}</p>`;
 }
+const SHAPES = {
+  square:'<rect x="1" y="1" width="8" height="8" fill="currentColor"/>',
+  circle:'<circle cx="5" cy="5" r="4.25" fill="currentColor"/>',
+  triangle:'<path d="M5 .75 9.5 9H.5Z" fill="currentColor"/>',
+  star:'<path d="M5 .3 6.3 3.6 9.8 3.8 7.1 6 8 9.5 5 7.6 2 9.5 2.9 6 .2 3.8 3.7 3.6Z" fill="currentColor"/>',
+  diamond:'<path d="M5 .25 9.75 5 5 9.75.25 5Z" fill="currentColor"/>',
+  asterisk:'<g stroke="currentColor" stroke-width="1.8" stroke-linecap="square"><path d="M5 .75v8.5M1.3 2.9l7.4 4.2M1.3 7.1l7.4-4.2"/></g>',
+};
+const MARKS = [['#3b82f6','square'],['#ec4899','circle'],['#22c55e','triangle'],['#14b8a6','star'],['#a855f7','asterisk'],['#f97316','diamond']];
+const mk = (shape, color) => `<span class="mk" style="color:${color}"><svg viewBox="0 0 10 10" aria-hidden="true">${SHAPES[shape]}</svg></span>`;
 // Follows the 'Move more' plan: 7,000 to start, +500 every two weeks, up to 10,000
 const STEP_PLAN = {base:7000, step:500, every:14, cap:10000};
 function stepGoal(d){
@@ -1322,7 +1363,7 @@ function ring(p, val, label, goal, size){
 // it "starts" before 9 pm, or the bed-to-wake window is far longer than the time actually in bed.
 const realBed = n => { if(!n || n.bed==null) return false; if(n.bed<21) return false;
   if(n.wake!=null && n.inbed!=null){ const win=(n.wake+24)-n.bed; if(win>0 && n.inbed<win*0.6) return false; } return true; };
-const AREA_COL = {'Sleep':'#5b4cf5','Move':'#f0285a','Exercise':'#2fb944'};
+const AREA_COL = {'Sleep':'#5b4cf5','Move':'#f0285a','Exercise':'#2fb944'}, AREA_MK = {'Sleep':'circle','Move':'triangle','Exercise':'square'};
 function stackRings(areas, score){
   const S=200, c=S/2, sw=18, gap=4;
   const arcs=areas.map((a,i)=>{ const r=c-sw/2-2-i*(sw+gap), C=2*Math.PI*r, f=a.na?0:Math.max(0,Math.min(1,a.p)), col=AREA_COL[a.k];
@@ -1401,8 +1442,8 @@ function renderEval(){
         <div class="big" style="margin:0 0 6px">${verdict}</div>
         <p style="margin:0 0 14px;font-size:14.5px">${worst.p>=0.9?'Every area is at or near its goal. Keep it going.':`${good.length?`Going well: ${esc(list(good))}. `:''}${esc(worst.fix)}`}</p>
         <div class="eval-rows">${rings.map(a=>a.na
-          ?`<div class="eval-row na"><span class="n"><i class="dot" style="border:1.5px dashed ${AREA_COL[a.k]}"></i>${T(a.k+' (score)',a.k)}</span><span class="v">${esc(a.na)}</span><span class="pc">—</span></div>`
-          :`<div class="eval-row"><span class="n"><i class="dot" style="background:${AREA_COL[a.k]}"></i>${T(a.k+' (score)',a.k)}</span><span class="v">${a.vh||esc(a.v)}</span><span class="pc">${Math.round(a.p*100)}%</span></div>`).join('')}</div>
+          ?`<div class="eval-row na"><span class="n" style="opacity:.6">${mk(AREA_MK[a.k],AREA_COL[a.k])}${T(a.k+' (score)',a.k)}</span><span class="v">${esc(a.na)}</span><span class="pc">—</span></div>`
+          :`<div class="eval-row"><span class="n">${mk(AREA_MK[a.k],AREA_COL[a.k])}${T(a.k+' (score)',a.k)}</span><span class="v">${a.vh||esc(a.v)}</span><span class="pc">${Math.round(a.p*100)}%</span></div>`).join('')}</div>
         <div class="eval-also"><span class="eyebrow">Also tracking</span>${others.map(a=>`<div><b>${a.k==='Heart'?T('Resting heart rate','Heart'):esc(a.k)}</b><span class="${a.na?'muted':''}">${esc(a.na||a.v)}</span></div>`).join('')}</div>
         ${iss.length?`<a class="eval-med" href="#health">Medical: ${hi?`<b>${hi} high priority</b>`:''}${hi&&mid?', ':''}${mid?`${mid} need${mid===1?'s':''} attention`:''}${!hi&&!mid?'nothing urgent':''} · see My health →</a>`:''}
       </div>
@@ -1773,6 +1814,30 @@ const GLOSS = [
 const gCats = [...new Set(GLOSS.map(g=>g[1]))];
 let gCat = 'All';
 $('#gl-cats').innerHTML = ['All',...gCats].map(c=>`<button data-c="${c}" aria-pressed="${c==='All'}">${c}</button>`).join('');
+
+/* ---------- Portfolio touches: marker shapes, scroll reveal, back to top ---------- */
+(function(){
+  // glossary categories get the portfolio's colored marker shapes
+  const box=$('#gl-cats'); if(box) box.querySelectorAll('button[data-c]').forEach(b=>{ const i=gCats.indexOf(b.dataset.c); if(i>=0){ const [c,sh]=MARKS[i%MARKS.length]; b.insertAdjacentHTML('afterbegin', mk(sh,c)); } });
+  // reveal cards as they scroll into view (once), staggered within each batch
+  // Checked on scroll, resize and view changes (more reliable than IntersectionObserver when views toggle `hidden`)
+  if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
+    const els=[...document.querySelectorAll('main .card, main .kpi2, main .chart-card')]; els.forEach(el=>el.classList.add('rv'));
+    let queued=false;
+    const check=()=>{ queued=false; let k=0; const h=innerHeight*0.94;
+      els.forEach(el=>{ if(el.classList.contains('in') || !el.offsetParent) return; const r=el.getBoundingClientRect();
+        if(r.top<h && r.bottom>0){ el.style.setProperty('--rv-d',(Math.min(k++,5)*0.07)+'s'); el.classList.add('in'); } }); };
+    const q=()=>{ if(!queued){ queued=true; requestAnimationFrame(check); } };
+    ['scroll','resize','hashchange'].forEach(ev=>addEventListener(ev,q,{passive:true}));
+    document.addEventListener('click',()=>setTimeout(q,30));
+    q(); setTimeout(q,250);
+    setTimeout(()=>els.forEach(el=>{ if(!el.classList.contains('in')) { const r=el.getBoundingClientRect(); if(r.bottom<0) el.classList.add('in'); } }),1500); // anything already scrolled past
+  }
+  const tt=$('#to-top');
+  if(tt){ const on=()=>{ const v=scrollY>innerHeight*0.8; tt.classList.toggle('show',v); tt.tabIndex=v?0:-1; tt.setAttribute('aria-hidden',String(!v)); };
+    addEventListener('scroll',on,{passive:true}); on();
+    tt.addEventListener('click',()=>scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})); }
+})();
 function renderGloss(){
   const q = $('#gl-q').value.toLowerCase().trim();
   const items = GLOSS.filter(g=>(gCat==='All'||g[1]===gCat)&&(!q||(g[0]+' '+g[2]).toLowerCase().includes(q)));
