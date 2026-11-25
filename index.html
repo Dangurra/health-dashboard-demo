@@ -743,7 +743,12 @@ nav.tabs a:not([aria-current=page]):hover,.subtabs button:not([aria-selected=tru
 @media (max-width:640px){.eval-row{grid-template-columns:1fr auto;gap:2px 10px}.eval-row .v{grid-column:1/-1;grid-row:2;padding-left:19px;font-size:12.5px}.eval-row .pc{grid-row:1;grid-column:2}}
 .stack{position:relative;width:200px;height:200px}
 .stack svg{display:block}
-.stack b{position:absolute;inset:0;display:grid;place-items:center;font:400 30px var(--serif)}
+.stack b{position:absolute;inset:0;display:grid;place-items:center;font:400 34px var(--serif)}
+.eval-also{margin-top:16px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.eval-also .eyebrow{grid-column:1/-1;margin-bottom:2px}
+.eval-also div{background:var(--surface-2);padding:10px 12px;font-size:12.5px;display:flex;flex-direction:column;gap:3px;color:var(--ink-2)}
+.eval-also b{font-size:13.5px;color:var(--ink)}
+@media (max-width:640px){.eval-also{grid-template-columns:1fr 1fr}}
 .eval-score{display:flex;flex-direction:column;align-items:center;gap:8px;flex:none}
 .eval-cap{font-size:12.5px;color:var(--muted)}
 .eval-med{display:inline-block;margin-top:14px;font-size:13.5px;color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
@@ -1317,9 +1322,9 @@ function ring(p, val, label, goal, size){
 // it "starts" before 9 pm, or the bed-to-wake window is far longer than the time actually in bed.
 const realBed = n => { if(!n || n.bed==null) return false; if(n.bed<21) return false;
   if(n.wake!=null && n.inbed!=null){ const win=(n.wake+24)-n.bed; if(win>0 && n.inbed<win*0.6) return false; } return true; };
-const AREA_COL = {'Sleep':'#5b4cf5','Activity':'#f26b1d','Workouts':'#12a150','Heart':'#e5245e','Weight':'#0ea5c6','How you feel':'#c9a100'};
+const AREA_COL = {'Sleep':'#5b4cf5','Move':'#f0285a','Exercise':'#2fb944'};
 function stackRings(areas, score){
-  const S=200, c=S/2, sw=10, gap=3;
+  const S=200, c=S/2, sw=18, gap=4;
   const arcs=areas.map((a,i)=>{ const r=c-sw/2-2-i*(sw+gap), C=2*Math.PI*r, f=a.na?0:Math.max(0,Math.min(1,a.p)), col=AREA_COL[a.k];
     return `<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${col}" stroke-opacity="${a.na?0.08:0.16}" stroke-width="${sw}"${a.na?' stroke-dasharray="2 4"':''}/>`
       + (f>0?`<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${(C*f).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 ${c} ${c})"/>`:''); }).join('');
@@ -1339,17 +1344,19 @@ function renderEval(){
   if(sl.length>=3){
     const hrs=clamp(mean(sl)/7), sd=bd.length>=3?Math.sqrt(mean(bd.map(v=>(v-mean(bd))**2))):null, cons=sd==null?null:clamp(1-(sd-0.5)/1.5);
     const p=cons==null?hrs:0.7*hrs+0.3*cons, swing=sd==null?'':` · ${T('Sleep schedule (bedtime consistency)','bedtime')} ±${sd<1?Math.round(sd*60)+' min':sd.toFixed(1)+' h'}`;
-    areas.push({k:'Sleep', p, vh:`${T('Total sleep',hm(mean(sl))+' a night')}${swing}`,
+    areas.push({k:'Sleep', ring:1, p, vh:`${T('Total sleep',hm(mean(sl))+' a night')}${swing}`,
       fix: hrs<=(cons??1) ? `Sleep is the biggest gap. You're averaging ${hm(mean(sl))} a night against a 7-hour goal, mostly from falling asleep around ${clockOf(mean(bd.length?bd:vals('bed')))}. Lights out 30 minutes earlier is the easiest win.`
                           : `Your bedtime is the biggest gap: it swings by about ${sd<1?Math.round(sd*60)+' minutes':sd.toFixed(1)+' hours'} from night to night. Pick one bedtime and keep it, even on weekends.`});
-  } else areas.push({k:'Sleep', na:'Needs 3 nights of sleep data'});
-  // 2. Activity: steps against the plan's goal for each day, plus exercise minutes against 30
-  const sp=full.filter(d=>D[d].steps!=null).map(d=>clamp(D[d].steps/stepGoal(d))), ex=vals('exercise',full);
-  if(sp.length>=3){
-    const p=ex.length>=3?(mean(sp)+clamp(mean(ex)/30))/2:mean(sp);
-    areas.push({k:'Activity', p, v:`${Math.round(mean(vals('steps',full))).toLocaleString()} steps${ex.length>=3?` · ${Math.round(mean(ex))} min exercise`:''}`,
-      fix:`Activity is the biggest gap: about ${Math.round(mean(vals('steps',full))).toLocaleString()} steps a day against your current goal of ${stepGoal().toLocaleString()}${ex.length>=3?`, and ${Math.round(mean(ex))} of 30 exercise minutes`:''}. A 10-minute walk after each meal closes most of it.`});
-  } else areas.push({k:'Activity', na:'Needs 3 days of steps'});
+  } else areas.push({k:'Sleep', ring:1, na:'Needs 3 nights of sleep data'});
+  // 2. Move: steps against the plan's goal for each day
+  const sp=full.filter(d=>D[d].steps!=null).map(d=>clamp(D[d].steps/stepGoal(d))), ex=vals('exercise',full), stAvg=Math.round(mean(vals('steps',full))||0);
+  if(sp.length>=3) areas.push({k:'Move', ring:1, p:mean(sp), v:`${stAvg.toLocaleString()} steps a day · goal ${stepGoal().toLocaleString()}`,
+    fix:`Move is the biggest gap: about ${stAvg.toLocaleString()} steps a day against your current goal of ${stepGoal().toLocaleString()}. A 10-minute walk after each meal closes most of it.`});
+  else areas.push({k:'Move', ring:1, na:'Needs 3 days of steps'});
+  // 3. Exercise: Apple Watch exercise minutes against 30 a day (gym sessions count automatically)
+  if(ex.length>=3) areas.push({k:'Exercise', ring:1, p:clamp(mean(ex)/30), v:`${Math.round(mean(ex))} min a day · goal 30`,
+    fix:`Exercise is the biggest gap at ${Math.round(mean(ex))} minutes a day. Your 5 gym days with the incline treadmill warm-up get you past 30 on their own.`});
+  else areas.push({k:'Exercise', ring:1, na:'Needs 3 days from your watch'});
   // 3. Workouts: planned gym days done since the plan started (last 4 weeks at most)
   let st0; try{ st0=wtGoal.startDate; }catch(e){}
   const from=[st0||win[0], dayISO(Date.now()-27*864e5)].sort()[1];
@@ -1359,9 +1366,9 @@ function renderEval(){
     if(d===today && !gymLog[d]) continue; // today isn't over yet
     planned.push(d); if(gymLog[d]) done.push(d);
   }
-  if(planned.length>=2) areas.push({k:'Workouts', p:clamp(done.length/planned.length), v:`${done.length} of ${planned.length} planned`,
+  if(planned.length>=2) areas.push({k:'Gym days', p:clamp(done.length/planned.length), v:`${done.length} of ${planned.length} planned ticked done`,
     fix:`Workouts are the biggest gap: ${done.length} of ${planned.length} planned gym days done so far. Tick "Workout done" on the Gym page after each session so it counts.`});
-  else areas.push({k:'Workouts', na:'Starts counting after 2 planned gym days'});
+  else areas.push({k:'Gym days', na:'Shows after 2 planned gym days'});
   // 4. Heart: average resting heart rate (lower is better; 60 or under scores full marks, 85 or over scores zero)
   const rh=vals('rhr');
   if(rh.length>=2) areas.push({k:'Heart', p:clamp((85-mean(rh))/25), v:`resting ${Math.round(mean(rh))} bpm`,
@@ -1379,7 +1386,7 @@ function renderEval(){
     fix:`How you feel is the lowest area. Your check-ins average "${JR_LBL[Math.round(a)]}". Look at the Trends page to see which days were worse and what you tagged them with.`}); }
   else areas.push({k:'How you feel', na:'Needs 3 daily check-ins'});
 
-  const scored=areas.filter(a=>!a.na);
+  const rings=areas.filter(a=>a.ring), others=areas.filter(a=>!a.ring), scored=rings.filter(a=>!a.na);
   if(!scored.length){ el.hidden=true; return; }
   el.hidden=false;
   const score=Math.round(mean(scored.map(a=>a.p))*100);
@@ -1389,17 +1396,18 @@ function renderEval(){
   const iss=typeof issues!=='undefined'?issues:[], hi=iss.filter(i=>i.s==='serious').length, mid=iss.filter(i=>i.s==='warning').length;
   el.innerHTML=`<span class="eyebrow">Overall · last 30 days${days.length<30?` (${days.length} days of data so far)`:''}</span>
     <div class="eval">
-      <div class="eval-score">${stackRings(areas,score)}<span class="eval-cap">${T('Overall score','overall score')} out of 100</span></div>
+      <div class="eval-score">${stackRings(rings,score)}<span class="eval-cap">${T('Overall score','overall score')} out of 100</span></div>
       <div class="eval-body">
         <div class="big" style="margin:0 0 6px">${verdict}</div>
         <p style="margin:0 0 14px;font-size:14.5px">${worst.p>=0.9?'Every area is at or near its goal. Keep it going.':`${good.length?`Going well: ${esc(list(good))}. `:''}${esc(worst.fix)}`}</p>
-        <div class="eval-rows">${areas.map(a=>a.na
+        <div class="eval-rows">${rings.map(a=>a.na
           ?`<div class="eval-row na"><span class="n"><i class="dot" style="border:1.5px dashed ${AREA_COL[a.k]}"></i>${T(a.k+' (score)',a.k)}</span><span class="v">${esc(a.na)}</span><span class="pc">—</span></div>`
           :`<div class="eval-row"><span class="n"><i class="dot" style="background:${AREA_COL[a.k]}"></i>${T(a.k+' (score)',a.k)}</span><span class="v">${a.vh||esc(a.v)}</span><span class="pc">${Math.round(a.p*100)}%</span></div>`).join('')}</div>
+        <div class="eval-also"><span class="eyebrow">Also tracking</span>${others.map(a=>`<div><b>${a.k==='Heart'?T('Resting heart rate','Heart'):esc(a.k)}</b><span class="${a.na?'muted':''}">${esc(a.na||a.v)}</span></div>`).join('')}</div>
         ${iss.length?`<a class="eval-med" href="#health">Medical: ${hi?`<b>${hi} high priority</b>`:''}${hi&&mid?', ':''}${mid?`${mid} need${mid===1?'s':''} attention`:''}${!hi&&!mid?'nothing urgent':''} · see My health →</a>`:''}
       </div>
     </div>
-    <p class="muted" style="font-size:12px;margin:12px 0 0">Your overall score is the average of six areas over a rolling 30 days: sleep, activity, workouts, heart, weight and how you feel. Areas without enough data yet are left out instead of counting as zero. Lab results aren't scored. They're under Medical.</p>`;
+    <p class="muted" style="font-size:12px;margin:12px 0 0">Your overall score is the average of three rings over a rolling 30 days, like the rings on your watch: sleep, move (steps) and exercise. A ring without enough data yet is left out instead of counting as zero. Heart, weight, how you feel and gym days are tracked below the rings but not scored.</p>`;
 }
 const wkDays = () => [...Array(7)].map((_,i)=>dayISO(Date.now()-(6-i)*864e5));
 const dowOf = d => new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'});
@@ -1745,14 +1753,11 @@ const GLOSS = [
  [`Walking heart rate`, `Activity & sleep`, `Your average heart rate during everyday walking. When it falls over time, fitness is improving.`, `About 111 bpm (last 90 days).`, `warning`],
  [`Cardio fitness (VO₂ max)`, `Activity & sleep`, `How well your body uses oxygen during exercise. It is one of the strongest predictors of long-term health. Apple Watch estimates it during outdoor walks and runs, and alerts you when it is low for your age.`, `Your Watch sent a "Low Cardio Fitness" alert in Aug 2025.`, `warning`],
  [`Deep sleep`, `Activity & sleep`, `The most restorative sleep stage, when the body repairs tissue and resets blood sugar and appetite hormones. Short sleep cuts deep sleep first.`, `About 1.2 h/night, down from about 1.6 h in 2022.`, `warning`],
- [`Overall score`, `Your scores`, `A 0–100 summary of how you're doing over a rolling 30 days. It averages six areas equally: sleep (hours against 7, plus how steady your bedtime is), activity (steps against your plan's goal for each day, plus exercise minutes against 30), workouts (planned gym days you marked done), heart (average resting heart rate: 60 or under scores full marks, 85 or over scores zero), weight (whether you're on pace for your goal) and how you feel (your check-in ratings). An area without enough data is left out instead of counting as zero. Nap-like sleep records, ones that start before 9 pm or cover far more time than you spent in bed, are ignored for bedtime. Lab results aren't scored.`, ``, ``],
+ [`Overall score`, `Your scores`, `A 0–100 summary of your habits over a rolling 30 days, shown as three rings like your Apple Watch's. Sleep: hours against 7, plus how steady your bedtime is. Move: steps against your plan's goal for each day. Exercise: Apple Watch exercise minutes against 30 a day (gym sessions count automatically). The score is the average of the three rings. A ring without enough data is left out instead of counting as zero. Heart, weight, how you feel and gym days are shown below the rings but not scored. Lab results are never scored.`, ``, ``],
  [`Total sleep`, `Activity & sleep`, `Time you were actually asleep, not just in bed. Awake moments during the night are left out. Eight Sleep and Apple Watch measure it from your movement, heart rate and breathing. Adults need 7–9 hours. Regularly getting under 6 raises blood pressure, blood sugar, triglycerides and appetite.`, ``, ``],
  [`Sleep (score)`, `Your scores`, `How well you're sleeping over the last 30 days. 70% is hours: your average total sleep against a 7-hour goal. 30% is your sleep schedule: how steady your bedtime is. Full marks means about 7 hours a night with a bedtime that stays within ±30 minutes.`, ``, ``],
- [`Activity (score)`, `Your scores`, `How much you move day to day. It averages two things: steps against your plan's goal for each day, and exercise minutes against 30 a day. Each is capped at 100%, so a big day can't make up for several quiet ones.`, ``, ``],
- [`Workouts (score)`, `Your scores`, `The share of planned gym days you marked done on the Gym page, counted since your plan started (4 weeks at most). Optional weekend workouts don't count against you. Today only counts once it's done.`, ``, ``],
- [`Heart (score)`, `Your scores`, `Based on your average resting heart rate. A resting rate of 60 bpm or lower scores full marks and 85 or higher scores zero. It usually drops as fitness, sleep and weight improve, so it's a good slow-moving sign that the plan is working.`, ``, ``],
- [`Weight (score)`, `Your scores`, `Whether you're on pace for your weight goal. If your latest weigh-in is at or ahead of the straight-line pace from your start weight to your goal, it scores full marks. It drops as you fall behind, reaching zero at about 3 weeks behind.`, ``, ``],
- [`How you feel (score)`, `Your scores`, `The average of your daily check-in ratings (overall, energy, mood, sleep and body) over the last 30 days. "Good" on everything scores full marks. It needs at least 3 check-ins.`, ``, ``],
+ [`Move (score)`, `Your scores`, `Your everyday movement: steps against your Move more plan's goal for each day, averaged over the last 30 days. Each day is capped at 100%, so one big day can't make up for several quiet ones.`, ``, ``],
+ [`Exercise (score)`, `Your scores`, `Minutes your Apple Watch counted as brisk activity (about a fast walk or harder) against 30 a day, averaged over the last 30 days. Gym sessions and incline treadmill walks count automatically, with nothing to tick.`, ``, ``],
  [`Sleep schedule (bedtime consistency)`, `Activity & sleep`, `How much your bedtime moves from night to night, measured as the typical swing (standard deviation). Within ±30 minutes scores full marks, and ±2 hours or more scores zero. A steady bedtime keeps your body clock in sync, which improves deep sleep, mood, appetite and blood sugar, even when total hours stay the same. It makes up 30% of your sleep score. Nap-like records are ignored: ones that start before 9 pm, or where the time from bed to waking is far longer than the time you spent in bed.`, ``, ``],
  [`REM sleep`, `Activity & sleep`, `The dreaming stage, when the brain sorts memories and processes emotions. It comes in longer stretches toward morning, so cutting sleep short or waking early loses REM first. Adults usually get about 1.5–2 hours, roughly 20–25% of the night.`, ``, ``],
  [`Core sleep`, `Activity & sleep`, `Apple's name for light sleep (stages N1–N2). It's most of the night, usually about half or more. It's still useful sleep: the body lowers heart rate and temperature, and the brain moves between deep and REM sleep through it.`, ``, ``],
