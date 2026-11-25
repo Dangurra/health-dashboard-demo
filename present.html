@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex">
 <title>My Health · desktop + phone</title>
 <link rel="stylesheet" href="/device.css">
+<script src="/device.js"></script>
 </head>
 <body>
 <!-- Recording view: the live demo in a browser window and on a phone, side by side.
@@ -31,6 +32,7 @@
 </div></div>
 <div class="ctl"><label><input type="checkbox" id="sync" checked> Sync tabs</label><span>Synthetic data</span><span><kbd>H</kbd> hides this bar</span></div>
 <script>
+  frameApp(document.getElementById('desk'), false); frameApp(document.getElementById('phone'), true);
   const desk=document.getElementById('desk'), phone=document.getElementById('phone'), sync=document.getElementById('sync');
   const c=document.getElementById('clock'), tick=()=>{ const d=new Date(); c.textContent=`${d.getHours()%12||12}:${String(d.getMinutes()).padStart(2,'0')}`; };
   tick(); setInterval(tick, 15000);

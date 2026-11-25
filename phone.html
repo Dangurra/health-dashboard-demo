@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex">
 <title>My Health · phone</title>
 <link rel="stylesheet" href="/device.css">
+<script src="/device.js"></script>
 </head>
 <body>
 <!-- The live demo app, shown at iPhone size inside a phone frame, for screen recordings. -->
@@ -26,6 +27,7 @@
 </div></div>
 <div class="ctl">Live demo · synthetic data · <kbd>H</kbd> hides this</div>
 <script>
+  frameApp(document.getElementById('app'), true);
   // Status-bar clock shows the real time
   const c=document.getElementById('clock'), tick=()=>{ const d=new Date(); c.textContent=`${d.getHours()%12||12}:${String(d.getMinutes()).padStart(2,'0')}`; };
   tick(); setInterval(tick, 15000);
