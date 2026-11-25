@@ -1641,6 +1641,7 @@ const tl = [
  ['Apr – May 2027','<b>HbA1c recheck</b> (about 6 months) to see whether prediabetes is improving. Repeat <b>liver ultrasound</b> if ALT is still high.'],
  ['Oct 2027','<b>Annual physical:</b> CBC, CMP, lipids, A1c and vitamin D, plus annual flu shot.'],
 ];
+$('#tl').innerHTML = tl.map(([w,t])=>`<li><span class="when">${w}</span><span class="what">${t}</span></li>`).join('');
 /* ---------- Appointments (demo: dates are set relative to today so they always look upcoming) ---------- */
 const APPTS = (function(){
   const base=[
