@@ -646,8 +646,8 @@ footer{font-family:var(--mono);font-variation-settings:"ELSH" 1;font-size:11px;b
 :root[data-theme="dark"] .head-set[aria-current=page]{border-color:var(--accent);color:var(--accent)}
 .head-set:focus-visible{outline:2px solid var(--action);outline-offset:2px}
 @media (max-width:760px){
-  .head-set{display:inline-flex;margin-left:auto}
-  .app-head #open-checkin{margin-left:0}
+  .head-set{display:inline-flex;order:-1;margin-left:0}
+  .app-head #open-checkin{margin-left:auto}
   }
 nav.tabs a[data-view="settings"]{display:none}
 /* weight goal */
@@ -683,7 +683,30 @@ nav.tabs a:not([aria-current=page]):hover,.subtabs button:not([aria-selected=tru
 .sync-line{display:flex;align-items:center;gap:8px;margin:8px 0 0;font-size:12.5px;color:var(--muted)}
 .sync-line i{width:7px;height:7px;border-radius:50%;background:var(--good);flex:none}
 .sync-line.stale i{background:var(--warning)}
-#src-list .dx{gap:14px}
+#src-list .src-row{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;padding:12px 0;border-top:1px solid var(--grid);font-size:14px}
+#src-list .src-row .d{color:var(--muted);font-size:13px;margin-top:2px}
+.src-st{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--ink-2);line-height:1.45;max-width:48%;flex:none}
+.src-st i{width:7px;height:7px;border-radius:50%;margin-top:5px;flex:none;background:var(--muted)}
+.src-st.good i{background:var(--good)}
+.src-st.warning i{background:var(--warning)}
+@media (max-width:640px){#src-list .src-row{flex-direction:column;gap:6px}.src-st{max-width:none}}
+.wk-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin-top:10px}
+@media (max-width:640px){.wk-grid{grid-template-columns:1fr}}
+.wk-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;margin-bottom:22px;flex-wrap:wrap}
+.legend .lg{width:10px;height:10px}
+.bars{position:relative;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;height:130px;border-bottom:1px solid var(--axis)}
+.bars .col{display:flex;flex-direction:column;justify-content:flex-end;height:100%;min-width:0}
+.bars .col b{position:relative;z-index:1;align-self:center;font:400 10.5px var(--mono);color:var(--ink-2);text-align:center;margin-bottom:3px;white-space:nowrap;background:var(--surface);padding:0 2px}
+.bars .col{align-items:center}
+.bars .col i{display:block;width:100%;max-width:44px;min-height:0}
+.bars .tgt{position:absolute;left:0;right:0;border-top:1.5px dashed var(--series-2);pointer-events:none}
+.bar-x{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;font:10.5px var(--mono);color:var(--muted);text-align:center;margin-top:5px}
+.s-deep{background:var(--series)}
+.s-rem{background:color-mix(in srgb,var(--series) 55%,transparent)}
+.s-core{background:color-mix(in srgb,var(--series) 22%,transparent)}
+.s-steps{background:var(--series)}
+.s-steps.part{background:color-mix(in srgb,var(--series) 40%,transparent)}
+.wd .ah{font:10.5px var(--mono);color:var(--muted);margin-top:auto;padding-top:4px}
 .rec-up{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
 </style>
 </head>
@@ -717,6 +740,7 @@ nav.tabs a:not([aria-current=page]):hover,.subtabs button:not([aria-selected=tru
     <div class="card t-card" id="t-workout"></div>
     <div class="card t-card" id="t-week"></div>
     <div class="card t-card t-full" id="t-sync"></div>
+    <div class="card t-card t-full" id="t-wk" hidden></div>
     <div class="card t-card t-full" id="t-weight"></div>
     <div class="card t-card t-wide" id="t-prio"></div>
     <div class="card t-card" id="t-next"></div>
@@ -809,7 +833,16 @@ nav.tabs a:not([aria-current=page]):hover,.subtabs button:not([aria-selected=tru
     <p>You logged chest or heart pain recently. Please check with your doctor before hard workouts. <b>Stop right away</b> if you get chest pain or pressure, dizziness, a racing or irregular heartbeat, or unusual shortness of breath, and call 911 if it's severe.</p>
   </div>
   <div id="gym-main">
-    <div class="card" id="wt-card" style="margin-bottom:16px">
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+        <h3 style="margin:0">Weekly schedule<span id="pf-gym"> · Riverside Fitness</span></h3>
+        <span class="muted" style="font-size:13px" id="gym-progress"></span>
+      </div>
+      <p class="muted" style="font-size:13px;margin:0 0 12px" id="gym-block"></p>
+      <div class="week" id="week" role="group" aria-label="Pick a day"></div>
+      <div id="day-detail" style="margin-top:16px"></div>
+    </div>
+    <div class="card" id="wt-card">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">
         <h3 style="margin:0">Weight goal</h3>
         <span class="muted" style="font-size:13px" id="wt-head"></span>
@@ -820,15 +853,6 @@ nav.tabs a:not([aria-current=page]):hover,.subtabs button:not([aria-selected=tru
       <div class="chart" id="wt-chart" style="height:210px"></div>
       <div class="legend"><span><i class="ln"></i>Your weigh-ins</span><span><i class="gl"></i>Goal pace</span><span><i class="sw"></i><span id="wt-leg-goal">Goal</span></span></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button type="button" class="btn sm" data-act="checkin">Log today's weight</button><a class="btn ghost sm" href="#settings" style="text-decoration:none">Change goal</a></div>
-    </div>
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px">
-        <h3 style="margin:0">Weekly schedule<span id="pf-gym"> · Riverside Fitness</span></h3>
-        <span class="muted" style="font-size:13px" id="gym-progress"></span>
-      </div>
-      <p class="muted" style="font-size:13px;margin:0 0 12px" id="gym-block"></p>
-      <div class="week" id="week" role="group" aria-label="Pick a day"></div>
-      <div id="day-detail" style="margin-top:16px"></div>
     </div>
   </div>
 
@@ -1121,8 +1145,8 @@ window.LIVE = (function(){
     var deep = g(1.15 + 0.15*p, 0.18), rem = g(1.3, 0.2), core = g(3.9 + 0.2*p, 0.35), bed = g(24.3 - 0.4*p, 0.35);
     var o = { rhr: r1(g(72.5 - 2*p, 1)), hrv: r1(g(36 + 4*p, 3)), deep: r1(deep), rem: r1(rem), core: r1(core), sleep: r1(deep+rem+core),
               awake: r1(g(0.4, 0.1)), bed: r1(bed), wake: r1((bed + deep + rem + core + 0.4) % 24), whr: r1(g(113 - 3*p, 2)),
-              steps: Math.round(g((gym ? 6600 : 5200) + 1400*p, 900)), exercise: Math.round(g(gym ? 52 : 18, 6)), resp: r1(g(14.6, 0.4)) };
-    if (i === 0) { o.steps = Math.round(o.steps * Math.min(1, new Date().getHours()/20)); delete o.exercise; } // today: still in progress
+              steps: Math.round(g((gym ? 6600 : 5200) + 1400*p, 900)), exercise: Math.round(g(gym ? 52 : 18, 6)), active: Math.round(g(gym ? 640 : 380, 60)), resp: r1(g(14.6, 0.4)) };
+    if (i === 0) { o.steps = Math.round(o.steps * Math.min(1, new Date().getHours()/20)); delete o.exercise; delete o.active; } // today: still in progress
     days[d] = o;
   }
   var src = ['Apple Watch', 'iPhone'], sleepSrc = ['Eight Sleep', 'Apple Watch'];
@@ -1192,12 +1216,13 @@ function renderSyncCard(){
   const rhr=lastWith('rhr'), hrv=lastWith('hrv');
   const stepsDay=D[yest]&&D[yest].steps!=null?yest:(D[today]&&D[today].steps!=null?today:null);
   const avg=k=>W.recent&&W.recent[k];
+  const ago=d=> d>=yest?'':'last reading '+new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
   const cmp=(v,a,lowGood,unit)=> v==null||a==null?'':(()=>{ const d=v-a; if(Math.abs(d)<(unit==='steps'?250:1)) return 'about your average'; const up=d>0; return `${up?'▲':'▼'} ${unit==='steps'?Math.round(Math.abs(d)).toLocaleString():Math.round(Math.abs(d))} vs 90-day avg`; })();
   const stages = n ? ['deep','rem','core'].filter(k=>n[k]!=null).map(k=>`${k==='rem'?'REM':k[0].toUpperCase()+k.slice(1)} ${hrsMin(n[k]).replace(' 0',' ')}`).join(' · ') : '';
   const age=syncAge(), src=sourceNames();
   const st=[
-    [rhr?`${Math.round(rhr[1])} bpm`:'—', 'resting heart rate', rhr?cmp(rhr[1],avg('rhr'),true,'bpm'):''],
-    [hrv?`${Math.round(hrv[1])} ms`:'—', 'HRV', hrv?cmp(hrv[1],avg('hrv'),false,'ms'):''],
+    [rhr?`${Math.round(rhr[1])} bpm`:'—', 'resting heart rate', rhr?(ago(rhr[0])||cmp(rhr[1],avg('rhr'),true,'bpm')):''],
+    [hrv?`${Math.round(hrv[1])} ms`:'—', 'HRV', hrv?(ago(hrv[0])||cmp(hrv[1],avg('hrv'),false,'ms')):''],
     [stepsDay?Math.round(D[stepsDay].steps).toLocaleString():'—', stepsDay===today?'steps today so far':'steps yesterday', stepsDay?cmp(D[stepsDay].steps,avg('steps'),false,'steps'):''],
     [n&&n.bed!=null?clockOf(n.bed):'—', 'fell asleep', n&&n.wake!=null?'woke '+clockOf(n.wake):''],
   ];
@@ -1207,20 +1232,76 @@ function renderSyncCard(){
     <div class="wt-stats" style="margin:4px 0 0">${st.map(([b,l,c])=>`<div><b>${esc(b)}</b><span>${esc(l)}${c?`<br><span class="muted" style="font-size:11.5px">${esc(c)}</span>`:''}</span></div>`).join('')}</div>
     <p class="sync-line ${age&&age.stale?'stale':''}"><i></i>${age?(age.stale?`Last sync ${age.when}. Your phone sends new data whenever it's unlocked.`:`Synced ${age.when}`):'Not synced yet'}${src.length?` · ${esc(src.join(', '))}`:''}</p>`;
 }
+const STEP_GOAL = 8000;
+const wkDays = () => [...Array(7)].map((_,i)=>dayISO(Date.now()-(6-i)*864e5));
+const dowOf = d => new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'});
+const mean = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+function barChart(cols, max, target, tgtLabel){
+  const pct = v => Math.max(0, Math.min(100, v/max*100));
+  return `<div class="bars">${cols.map(c=>`<div class="col" title="${esc(c.title||'')}">${c.label!=null?`<b>${esc(c.label)}</b>`:''}${c.segs.map(([cls,v])=>`<i class="${cls}" style="height:${pct(v)}%"></i>`).join('')}</div>`).join('')}
+    ${target?`<div class="tgt" style="bottom:${pct(target)}%"></div>`:''}</div>
+    <div class="bar-x">${cols.map(c=>`<span>${esc(c.x)}</span>`).join('')}</div>`;
+}
+function renderWeekCard(){
+  const el=$('#t-wk'); if(!el) return;
+  const D=LIVE?LIVE.days:{}, days=wkDays(), today=days[6];
+  if(!days.some(d=>D[d])){ el.hidden=true; return; }
+  el.hidden=false;
+  const nights=days.filter(d=>D[d]&&D[d].sleep!=null), avgSleep=mean(nights.map(d=>+D[d].sleep));
+  const maxS=Math.max(9,...nights.map(d=>+D[d].sleep+0.6));
+  const sleepCols=days.map(d=>{ const n=D[d]||{}; const hasStages=n.deep!=null||n.rem!=null||n.core!=null;
+    const segs=n.sleep==null?[]:hasStages?[['s-core',+n.core||0],['s-rem',+n.rem||0],['s-deep',+n.deep||0]]:[['s-core',+n.sleep]];
+    return {x:dowOf(d), label:n.sleep!=null?(+n.sleep).toFixed(1):null, segs, title:n.sleep!=null?`${fmtD(d)}: ${hrsMin(n.sleep)} asleep`:`${fmtD(d)}: no sleep data`}; });
+  const stepDays=days.filter(d=>D[d]&&D[d].steps!=null), full=stepDays.filter(d=>d!==today), avgSteps=mean(full.map(d=>+D[d].steps));
+  const maxSt=Math.max(STEP_GOAL*1.15,...stepDays.map(d=>+D[d].steps*1.12));
+  const stepCols=days.map(d=>{ const v=D[d]&&D[d].steps; return {x:d===today?'Today':dowOf(d), label:v!=null?(v>=1000?(v/1000).toFixed(1)+'k':String(Math.round(v))):null, segs:v!=null?[[d===today?'s-steps part':'s-steps',+v]]:[], title:v!=null?`${fmtD(d)}: ${Math.round(v).toLocaleString()} steps${d===today?' so far':''}`:''}; });
+  const beds=nights.map(d=>D[d].bed).filter(v=>v!=null).map(Number), ex=full.map(d=>D[d].exercise).filter(v=>v!=null).map(Number),
+        act=full.map(d=>D[d].active).filter(v=>v!=null).map(Number), resp=days.map(d=>D[d]&&D[d].resp).filter(v=>v!=null).map(Number);
+  const short=nights.filter(d=>D[d].sleep<7).length;
+  // one plain-language takeaway, most useful first
+  const tips=[];
+  if(beds.length>=4 && Math.max(...beds)-Math.min(...beds)>=2) tips.push(`Your bedtime moved around by ${Math.round(Math.max(...beds)-Math.min(...beds))} hours this week (${clockOf(Math.min(...beds))} to ${clockOf(Math.max(...beds))}). Going to bed at the same time each night is one of the easiest ways to get more deep sleep.`);
+  if(nights.length>=4 && short>=nights.length-1) tips.push(`${short} of ${nights.length} nights were under 7 hours. Short sleep raises blood pressure, triglycerides and appetite, so it works against your other goals.`);
+  if(avgSteps!=null && avgSteps<STEP_GOAL) tips.push(`You're averaging ${Math.round(avgSteps).toLocaleString()} steps, about ${Math.round((STEP_GOAL-avgSteps)/100)*100} short of ${STEP_GOAL.toLocaleString()}. A 15-minute walk after dinner adds roughly 1,800 steps.`);
+  const stats=[
+    [beds.length?clockOf(mean(beds)):'—','average bedtime'],
+    [ex.length?`${Math.round(mean(ex))} min`:'—','exercise a day'],
+    [act.length?`${Math.round(mean(act))} kcal`:'—','active calories a day'],
+    [resp.length?`${mean(resp).toFixed(1)}/min`:'—','breathing rate asleep'],
+  ];
+  el.innerHTML=`<span class="eyebrow">Last 7 days · from Apple Health</span>
+    <div class="big">${avgSleep!=null?`${hrsMin(avgSleep)} of sleep a night`:'No sleep recorded this week'}</div>
+    <div class="wk-grid">
+      <div><div class="wk-h"><b>Sleep</b><span class="legend" style="margin:0"><span><i class="lg s-deep"></i>Deep</span><span><i class="lg s-rem"></i>REM</span><span><i class="lg s-core"></i>Core</span><span><i class="gl"></i>7 h goal</span></span></div>${barChart(sleepCols,maxS,7,'7 h')}</div>
+      <div><div class="wk-h"><b>Steps</b><span class="legend" style="margin:0">${avgSteps!=null?`<span>avg ${Math.round(avgSteps).toLocaleString()} a day</span>`:''}<span><i class="gl"></i>${STEP_GOAL.toLocaleString()} goal</span></span></div>${barChart(stepCols,maxSt,STEP_GOAL,(STEP_GOAL/1000)+'k goal')}</div>
+    </div>
+    <div class="wt-stats" style="margin:16px 0 0">${stats.map(([b,l])=>`<div><b>${esc(b)}</b><span>${esc(l)}</span></div>`).join('')}</div>
+    ${tips.length?`<p style="margin:14px 0 0;font-size:14px">💡 ${esc(tips[0])}</p>`:''}`;
+}
 function renderSources(){
   const el=$('#src-list'); if(!el) return;
   const age=syncAge(), src=sourceNames(), sy=(LIVE&&LIVE.sync)||{};
   const has=re=>src.some(x=>re.test(x));
+  const D=LIVE?LIVE.days:{}, yest=dayISO(Date.now()-864e5);
+  const lastWith=(...ks)=>{ for(let i=liveDays.length-1;i>=0;i--) if(ks.some(k=>D[liveDays[i]][k]!=null)) return liveDays[i]; return null; };
+  const short=d=>new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  const heart=lastWith('rhr','hrv'), steps=lastWith('steps'), sleep=lastWith('sleep');
   const labDates=DATA.labs.filter(l=>l.cat==='lab').map(l=>l.d).sort(), lastLab=labDates[labDates.length-1];
+  const watch = !has(/Apple Watch|iPhone/)&&!steps ? ['info','Waiting for first sync']
+    : heart && heart<yest ? ['warning',`Steps arriving. No heart rate or HRV since ${short(heart)}. Wear your watch to bed so it can measure overnight.`]
+    : ['good','Receiving steps and heart data'];
+  const eight = !sleep ? ['info','Not seen yet. Turn on Apple Health in the Eight Sleep app.']
+    : sleep<yest ? ['warning',`Last night of sleep received was ${short(sleep)}. Open the Eight Sleep app so it syncs to Apple Health.`]
+    : ['good',`Receiving · last night synced`];
   const rows=[
-    ['Apple Health','Hub for everything below. Your iPhone pushes it here.', liveDays.length?(age&&age.stale?'warning':'good'):'info',
+    ['Apple Health','The hub for everything below. Your iPhone sends it here in the background.', liveDays.length?(age&&age.stale?'warning':'good'):'info',
       liveDays.length?`${age&&age.stale?'Last sync':'Synced'} ${age?age.when:''} · ${liveDays.length} days stored`:'Not connected yet'],
-    ['Apple Watch & iPhone','Steps, heart rate, HRV, workouts', has(/Apple Watch|iPhone/)?'good':'info', has(/Apple Watch|iPhone/)?'Receiving':'Waiting for first sync'],
-    ['Eight Sleep','Sleep stages, heart rate and HRV overnight, via Apple Health', has(/Eight Sleep/)?'good':'info', has(/Eight Sleep/)?'Receiving':'Not seen yet. Turn on Apple Health in the Eight Sleep app.'],
-    ['Sutter Health','Labs, vitals, diagnoses and medications (Health Records)', 'info', window.RECORDS&&window.RECORDS.at?`Updated ${fmtD(dayISO(window.RECORDS.at))} · latest result ${fmtD(lastLab)}`:lastLab?`Imported from Health Records · latest result ${fmtD(lastLab)}`:'Imported from your Health export'],
+    ['Apple Watch & iPhone','Steps, heart rate, HRV, workouts', ...watch],
+    ['Eight Sleep','Sleep stages and breathing rate, through Apple Health', ...eight],
+    ['Sutter Health','Labs, vitals, diagnoses and medications', 'info', lastLab?`Latest result ${short(lastLab)} · update with a Health export below`:'Update with a Health export below'],
   ];
-  el.innerHTML=rows.map(([n,d,s,t])=>`<div class="dx"><span><b>${n}</b><br><span class="muted" style="font-size:13px">${d}</span></span><span class="pill ${s}" style="white-space:normal;text-align:right"><i></i>${esc(t)}</span></div>`).join('')
-    + (sy.pushes?`<p class="muted" style="font-size:12.5px;margin:10px 0 0">${sy.pushes} syncs so far · last one covered ${sy.days||0} day${sy.days===1?'':'s'} (${sy.first&&sy.last?fmtD(sy.first)+' to '+fmtD(sy.last):'—'}).</p>`:'');
+  el.innerHTML=rows.map(([n,d,st,t])=>`<div class="src-row"><div><b>${n}</b><div class="d">${d}</div></div><div class="src-st ${st}"><i></i><span>${esc(t)}</span></div></div>`).join('')
+    + (sy.pushes?`<p class="muted" style="font-size:12.5px;margin:10px 0 0">${sy.pushes} syncs so far · the last one covered ${sy.days||0} day${sy.days===1?'':'s'}${sy.first&&sy.last&&sy.first!==sy.last?` (${fmtD(sy.first)} to ${fmtD(sy.last)})`:''}.</p>`:'');
 }
 renderSources();
 
@@ -1704,7 +1785,7 @@ function autoSwap(){
   return changed;
 }
 function renderWeek(){
-  $('#week').innerHTML = WEEK.map((w,i)=>`<button type="button" class="wd ${w.rest||w.opt?'rest':''} ${i===todayIdx?'today':''}" aria-pressed="${i===selDay}" data-i="${i}"><span class="d">${w.d}</span><span class="w">${w.name}</span>${w.opt?'<span class="opt-tag">Optional</span>':''}${gymLog[dateOf(i)]?'<span class="done" aria-label="done">✓</span>':''}</button>`).join('');
+  $('#week').innerHTML = WEEK.map((w,i)=>`<button type="button" class="wd ${w.rest||w.opt?'rest':''} ${i===todayIdx?'today':''}" aria-pressed="${i===selDay}" data-i="${i}"><span class="d">${w.d}</span><span class="w">${w.name}</span>${w.opt?'<span class="opt-tag">Optional</span>':''}${(()=>{ const a=LIVE&&LIVE.days[dateOf(i)]; return a&&a.exercise!=null?`<span class="ah">${Math.round(a.exercise)} min active</span>`:''; })()}${gymLog[dateOf(i)]?'<span class="done" aria-label="done">✓</span>':''}</button>`).join('');
   const done = WEEK.filter((w,i)=>!w.rest && !w.opt && gymLog[dateOf(i)]).length;
   const extra = WEEK.filter((w,i)=>w.opt && gymLog[dateOf(i)]).length;
   $('#gym-progress').textContent = `This week: ${done} of 5 workouts done`+(extra?` + ${extra} optional`:'');
@@ -2174,6 +2255,7 @@ $('#expand-all').addEventListener('click', e=>{ const all=[...document.querySele
 // Today view
 function renderToday(){
   renderSyncCard();
+  renderWeekCard();
   const h=new Date().getHours();
   $('#greet').textContent = (h<12?'Good morning':h<18?'Good afternoon':'Good evening')+(pfFirst()?', '+pfFirst():'');
   $('#today-date').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
