@@ -331,7 +331,7 @@ details.mini-acc > summary{list-style:none;cursor:pointer;font-weight:600;font-s
 .today-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .t-wide{grid-column:span 2}
 @media (max-width:900px){.today-grid{grid-template-columns:1fr 1fr}.t-wide{grid-column:1/-1}}
-@media (max-width:600px){.today-grid{grid-template-columns:1fr}}
+@media (max-width:600px){.today-grid{grid-template-columns:1fr}#t-workout{order:-1}}
 .t-card{display:flex;flex-direction:column;gap:8px}
 .t-card .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
 .t-card .big{font-size:21px;font-weight:700;letter-spacing:-.01em;line-height:1.25}
@@ -732,9 +732,11 @@ nav.tabs a:not([aria-current=page]):hover,.subtabs button:not([aria-selected=tru
 .eval-body{flex:1;min-width:0}
 @media (max-width:640px){.eval{flex-direction:column;align-items:center;gap:14px}.eval-body{width:100%}}
 .eval-rows{display:grid;gap:9px}
-.eval-row{display:grid;grid-template-columns:120px 1fr 190px;gap:12px;align-items:center;font-size:13.5px}
+.eval-row{display:grid;grid-template-columns:110px 1fr 250px;gap:12px;align-items:center;font-size:13.5px}
 @media (max-width:640px){.eval-row{grid-template-columns:1fr auto;gap:5px 12px}.eval-row .bar{grid-column:1/-1;grid-row:2}.eval-row .v{text-align:right;font-size:12.5px}.eval-score .ring small{display:none}}
 .eval-row .n{font-weight:600}
+.eval-row.na .n,.eval-row.na .v{color:var(--muted);font-weight:400}
+.eval-row.na .bar{background:repeating-linear-gradient(90deg,var(--grid) 0 4px,transparent 4px 8px)}
 .eval-row .v{color:var(--ink-2)}
 .eval-row .bar{height:8px;background:var(--grid);border-radius:999px;overflow:hidden}
 .eval-row .bar i{display:block;height:100%;background:var(--series);border-radius:999px}
@@ -1307,39 +1309,84 @@ function ring(p, val, label, goal, size){
     <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="${esc(label)}: ${esc(val)}, ${Math.round((p||0)*100)}% of ${esc(goal)}"><circle class="trk" cx="${size/2}" cy="${size/2}" r="${r}"/><circle class="arc" cx="${size/2}" cy="${size/2}" r="${r}" stroke-dasharray="${(c*f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${size/2} ${size/2})"/></svg>
     <b>${esc(val)}</b><span>${esc(label)}</span><small>${esc(goal)}</small></div>`;
 }
+// A bedtime is unreliable when the record clearly merged a nap with the night:
+// it "starts" before 9 pm, or the bed-to-wake window is far longer than the time actually in bed.
+const realBed = n => { if(!n || n.bed==null) return false; if(n.bed<21) return false;
+  if(n.wake!=null && n.inbed!=null){ const win=(n.wake+24)-n.bed; if(win>0 && n.inbed<win*0.6) return false; } return true; };
 function renderEval(){
   const el=$('#t-eval'); if(!el) return;
   // Rolling 30 days (not the calendar week), so the score doesn't dip every Monday
-  const D=LIVE?LIVE.days:{}, today=dayISO(Date.now()), days=[...Array(30)].map((_,i)=>dayISO(Date.now()-(29-i)*864e5)).filter(d=>D[d]), full=days.filter(d=>d!==today);
+  const D=LIVE?LIVE.days:{}, today=dayISO(Date.now());
+  const win=[...Array(30)].map((_,i)=>dayISO(Date.now()-(29-i)*864e5)), days=win.filter(d=>D[d]), full=days.filter(d=>d!==today);
   const vals=(k,ds)=>(ds||days).map(d=>D[d]&&D[d][k]).filter(v=>v!=null).map(Number);
-  const sl=vals('sleep'), st=vals('steps',full), ex=vals('exercise',full), bd=vals('bed');
-  if(sl.length<3 && st.length<3){ el.hidden=true; return; }
+  const clamp=v=>Math.max(0,Math.min(1,v)), tier=p=>p>=0.9?'full':p>=0.6?'near':'low';
+  const areas=[];
+  // 1. Sleep: hours (70%) + a steady bedtime (30%)
+  const sl=vals('sleep'), bd=days.filter(d=>realBed(D[d])).map(d=>+D[d].bed);
+  if(sl.length>=3){
+    const hrs=clamp(mean(sl)/7), sd=bd.length>=3?Math.sqrt(mean(bd.map(v=>(v-mean(bd))**2))):null, cons=sd==null?null:clamp(1-(sd-0.5)/1.5);
+    const p=cons==null?hrs:0.7*hrs+0.3*cons, swing=sd==null?'':` · bedtime ±${sd<1?Math.round(sd*60)+' min':sd.toFixed(1)+' h'}`;
+    areas.push({k:'Sleep', p, v:`${hm(mean(sl))} a night${swing}`,
+      fix: hrs<=(cons??1) ? `Sleep is the biggest gap. You're averaging ${hm(mean(sl))} a night against a 7-hour goal, mostly from falling asleep around ${clockOf(mean(bd.length?bd:vals('bed')))}. Lights out 30 minutes earlier is the easiest win.`
+                          : `Your bedtime is the biggest gap: it swings by about ${sd<1?Math.round(sd*60)+' minutes':sd.toFixed(1)+' hours'} from night to night. Pick one bedtime and keep it, even on weekends.`});
+  } else areas.push({k:'Sleep', na:'Needs 3 nights of sleep data'});
+  // 2. Activity: steps against the plan's goal for each day, plus exercise minutes against 30
+  const sp=full.filter(d=>D[d].steps!=null).map(d=>clamp(D[d].steps/stepGoal(d))), ex=vals('exercise',full);
+  if(sp.length>=3){
+    const p=ex.length>=3?(mean(sp)+clamp(mean(ex)/30))/2:mean(sp);
+    areas.push({k:'Activity', p, v:`${Math.round(mean(vals('steps',full))).toLocaleString()} steps${ex.length>=3?` · ${Math.round(mean(ex))} min exercise`:''}`,
+      fix:`Activity is the biggest gap: about ${Math.round(mean(vals('steps',full))).toLocaleString()} steps a day against your current goal of ${stepGoal().toLocaleString()}${ex.length>=3?`, and ${Math.round(mean(ex))} of 30 exercise minutes`:''}. A 10-minute walk after each meal closes most of it.`});
+  } else areas.push({k:'Activity', na:'Needs 3 days of steps'});
+  // 3. Workouts: planned gym days done since the plan started (last 4 weeks at most)
+  let st0; try{ st0=wtGoal.startDate; }catch(e){}
+  const from=[st0||win[0], dayISO(Date.now()-27*864e5)].sort()[1];
+  const planned=[], done=[];
+  for(let t=new Date(from+'T12:00:00'); dayISO(t)<=today; t=new Date(+t+864e5)){
+    const d=dayISO(t), w=WEEK[(t.getDay()+6)%7]; if(!w || w.rest || w.opt) continue;
+    if(d===today && !gymLog[d]) continue; // today isn't over yet
+    planned.push(d); if(gymLog[d]) done.push(d);
+  }
+  if(planned.length>=2) areas.push({k:'Workouts', p:clamp(done.length/planned.length), v:`${done.length} of ${planned.length} planned`,
+    fix:`Workouts are the biggest gap: ${done.length} of ${planned.length} planned gym days done so far. Tick "Workout done" on the Gym page after each session so it counts.`});
+  else areas.push({k:'Workouts', na:'Starts counting after 2 planned gym days'});
+  // 4. Heart: average resting heart rate (lower is better; 60 or under scores full marks, 85 or over scores zero)
+  const rh=vals('rhr');
+  if(rh.length>=2) areas.push({k:'Heart', p:clamp((85-mean(rh))/25), v:`resting ${Math.round(mean(rh))} bpm`,
+    fix:`Your resting heart rate is the biggest gap at ${Math.round(mean(rh))} bpm. It comes down with regular walking, better sleep and less alcohol, usually within 6–8 weeks.`});
+  else areas.push({k:'Heart', na:'Wear your watch to bed for resting heart rate'});
+  // 5. Weight: on pace for the goal?
+  const ws=wtStats();
+  if(ws.last){ const behind=-ws.ahead<0.5?0:-ws.ahead, p=behind<=0?1:clamp(1-behind/(ws.perWeek*3));
+    areas.push({k:'Weight', p, v: ws.reached?'goal reached':behind<=0?`on pace · ${lbs(ws.last.v)} lb`:`${behind.toFixed(1)} lb behind pace`,
+      fix:`Weight is the biggest gap: you're ${behind.toFixed(1)} lb behind the pace for ${lbs(wtGoal.goal)} lb. Hit your calories on most days and keep weighing in.`}); }
+  else areas.push({k:'Weight', na:'Log your weight in a check-in'});
+  // 6. How you feel: daily check-in ratings
+  const jr=JR.filter(e=>e.date>=win[0] && e.ratings && Object.keys(e.ratings).length), rs=jr.flatMap(e=>Object.values(e.ratings).map(Number));
+  if(jr.length>=3){ const a=mean(rs); areas.push({k:'How you feel', p:clamp((a-1)/4), v:`${JR_LBL[Math.round(a)]} on average · ${jr.length} check-ins`,
+    fix:`How you feel is the lowest area. Your check-ins average "${JR_LBL[Math.round(a)]}". Look at the Trends page to see which days were worse and what you tagged them with.`}); }
+  else areas.push({k:'How you feel', na:'Needs 3 daily check-ins'});
+
+  const scored=areas.filter(a=>!a.na);
+  if(!scored.length){ el.hidden=true; return; }
   el.hidden=false;
-  const clamp=v=>Math.max(0,Math.min(1,v));
-  const spread=bd.length>=3?Math.sqrt(mean(bd.map(v=>(v-mean(bd))**2))):null; // typical night-to-night swing (std dev, hours)
-  const areas=[
-    sl.length>=3 && {k:'Sleep', p:clamp(mean(sl)/7), v:`${hrsMin(mean(sl))} a night`, fix:`Sleep is what's holding you back most. You're getting about ${hrsMin(mean(sl))} a night against a 7-hour goal. Aim for lights out 30 minutes earlier this week.`},
-    spread!=null && {k:'Sleep schedule', p:clamp(1-(spread-0.5)/1.5), v:`bedtime ±${spread<1?Math.round(spread*60)+' min':spread.toFixed(1)+' h'}`, fix:`Your sleep schedule is the weakest area. Your bedtime typically swings by about ${hm(spread).replace(/^0h /,'')} from night to night. Pick one bedtime and keep it, even on weekends.`},
-    st.length>=3 && {k:'Steps', p:clamp(mean(full.filter(d=>D[d].steps!=null).map(d=>D[d].steps/stepGoal(d)))), v:`${Math.round(mean(st)).toLocaleString()} a day · goal ${stepGoal().toLocaleString()}`, fix:`Movement is the weakest area: about ${Math.round(mean(st)).toLocaleString()} steps a day against your current goal of ${stepGoal().toLocaleString()}. A walk after each meal closes most of that gap.`},
-    ex.length>=3 && {k:'Exercise', p:clamp(mean(ex)/30), v:`${Math.round(mean(ex))} min a day`, fix:`Exercise is the weakest area at ${Math.round(mean(ex))} minutes a day. Getting to all 5 gym days gets you past 30.`},
-  ].filter(Boolean);
-  const score=Math.round(mean(areas.map(a=>a.p))*100);
+  const score=Math.round(mean(scored.map(a=>a.p))*100);
   const verdict = score>=85?'Strong':score>=65?'Solid, with room to improve':score>=45?'Mixed':'Needs work';
-  const worst=[...areas].sort((a,b)=>a.p-b.p)[0];
-  const good=areas.filter(a=>a.p>=1).map(a=>a.k.toLowerCase());
+  const worst=[...scored].sort((a,b)=>a.p-b.p)[0], good=scored.filter(a=>a.p>=0.9).map(a=>a.k.toLowerCase());
   const list=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' and '+a[a.length-1];
   const iss=typeof issues!=='undefined'?issues:[], hi=iss.filter(i=>i.s==='serious').length, mid=iss.filter(i=>i.s==='warning').length;
   el.innerHTML=`<span class="eyebrow">Overall · last 30 days${days.length<30?` (${days.length} days of data so far)`:''}</span>
     <div class="eval">
-      <div class="eval-score">${ring(score/100, String(score), 'out of 100', 'habits score', 132)}</div>
+      <div class="eval-score">${ring(score/100, String(score), 'out of 100', 'overall score', 132)}</div>
       <div class="eval-body">
         <div class="big" style="margin:0 0 6px">${verdict}</div>
-        <p style="margin:0 0 14px;font-size:14.5px">${good.length===areas.length?'Every area is at its goal. Keep it going.':`${good.length?`You hit your ${esc(list(good))} goal${good.length>1?'s':''}. `:''}${esc(worst.fix)}`}</p>
-        <div class="eval-rows">${areas.map(a=>`<div class="eval-row"><span class="n">${esc(a.k)}</span><span class="bar"><i class="${a.p>=1?'full':a.p>=0.7?'near':'low'}" style="width:${Math.round(a.p*100)}%"></i></span><span class="v">${esc(a.v)}</span></div>`).join('')}</div>
+        <p style="margin:0 0 14px;font-size:14.5px">${worst.p>=0.9?'Every area is at or near its goal. Keep it going.':`${good.length?`Going well: ${esc(list(good))}. `:''}${esc(worst.fix)}`}</p>
+        <div class="eval-rows">${areas.map(a=>a.na
+          ?`<div class="eval-row na"><span class="n">${esc(a.k)}</span><span class="bar"></span><span class="v">${esc(a.na)}</span></div>`
+          :`<div class="eval-row"><span class="n">${esc(a.k)}</span><span class="bar"><i class="${tier(a.p)}" style="width:${Math.round(a.p*100)}%"></i></span><span class="v">${esc(a.v)}</span></div>`).join('')}</div>
         ${iss.length?`<a class="eval-med" href="#health">Medical: ${hi?`<b>${hi} high priority</b>`:''}${hi&&mid?', ':''}${mid?`${mid} need${mid===1?'s':''} attention`:''}${!hi&&!mid?'nothing urgent':''} · see My health →</a>`:''}
       </div>
     </div>
-    <p class="muted" style="font-size:12px;margin:12px 0 0">Your habits score is the average of how close you are to your sleep, sleep schedule, steps and exercise goals over a rolling 30 days, so it doesn't reset each week. Your step goal follows your Move more plan and goes up every two weeks. It uses only your watch and Eight Sleep data, not your lab results.</p>`;
+    <p class="muted" style="font-size:12px;margin:12px 0 0">Your overall score is the average of six areas over a rolling 30 days: sleep, activity, workouts, heart, weight and how you feel. Areas without enough data yet are left out instead of counting as zero. Lab results aren't scored. They're under Medical.</p>`;
 }
 const wkDays = () => [...Array(7)].map((_,i)=>dayISO(Date.now()-(6-i)*864e5));
 const dowOf = d => new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'});
@@ -1685,7 +1732,7 @@ const GLOSS = [
  [`Walking heart rate`, `Activity & sleep`, `Your average heart rate during everyday walking. When it falls over time, fitness is improving.`, `About 111 bpm (last 90 days).`, `warning`],
  [`Cardio fitness (VO₂ max)`, `Activity & sleep`, `How well your body uses oxygen during exercise. It is one of the strongest predictors of long-term health. Apple Watch estimates it during outdoor walks and runs, and alerts you when it is low for your age.`, `Your Watch sent a "Low Cardio Fitness" alert in Aug 2025.`, `warning`],
  [`Deep sleep`, `Activity & sleep`, `The most restorative sleep stage, when the body repairs tissue and resets blood sugar and appetite hormones. Short sleep cuts deep sleep first.`, `About 1.2 h/night, down from about 1.6 h in 2022.`, `warning`],
- [`Habits score`, `Your scores`, `A 0–100 summary of your day-to-day habits over a rolling 30 days. It averages four parts equally: sleep (hours against 7), sleep schedule (how steady your bedtime is), steps (against your plan's goal for each day) and exercise (minutes against 30). Each part is capped at 100%, so beating one goal can't hide another. It uses only your watch and Eight Sleep data, never your lab results.`, ``, ``],
+ [`Overall score`, `Your scores`, `A 0–100 summary of how you're doing over a rolling 30 days. It averages six areas equally: sleep (hours against 7, plus how steady your bedtime is), activity (steps against your plan's goal for each day, plus exercise minutes against 30), workouts (planned gym days you marked done), heart (average resting heart rate: 60 or under scores full marks, 85 or over scores zero), weight (whether you're on pace for your goal) and how you feel (your check-in ratings). An area without enough data is left out instead of counting as zero. Nap-like sleep records, ones that start before 9 pm or cover far more time than you spent in bed, are ignored for bedtime. Lab results aren't scored.`, ``, ``],
  [`Sleep schedule (bedtime consistency)`, `Activity & sleep`, `How much your bedtime moves from night to night, measured as the typical swing (standard deviation). Within ±30 minutes scores full marks, and ±2 hours or more scores zero. A steady bedtime keeps your body clock in sync, which improves deep sleep, mood, appetite and blood sugar, even when total hours stay the same.`, ``, ``],
  [`REM sleep`, `Activity & sleep`, `The dreaming stage, when the brain sorts memories and processes emotions. It comes in longer stretches toward morning, so cutting sleep short or waking early loses REM first. Adults usually get about 1.5–2 hours, roughly 20–25% of the night.`, ``, ``],
  [`Core sleep`, `Activity & sleep`, `Apple's name for light sleep (stages N1–N2). It's most of the night, usually about half or more. It's still useful sleep: the body lowers heart rate and temperature, and the brain moves between deep and REM sleep through it.`, ``, ``],
@@ -2453,7 +2500,7 @@ setTimeout(()=>{
     ['HRV (heart rate variability)', String.raw`\bHRV\b|heart rate variability`],
     ['Walking heart rate', String.raw`walking heart rate`],
     ['Cardio fitness (VO₂ max)', String.raw`cardio(?:vascular)? fitness|VO₂ max`],
-    ['Habits score', String.raw`habits score`],
+    ['Overall score', String.raw`overall score`],
     ['Sleep schedule (bedtime consistency)', String.raw`sleep schedule|bedtime consistency`],
     ['Deep sleep', String.raw`deep sleep|\bDeep\b`],
     ['REM sleep', String.raw`\bREM\b`],
