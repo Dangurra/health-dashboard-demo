@@ -718,9 +718,16 @@ nav.tabs a:not([aria-current=page]):hover,.subtabs button:not([aria-selected=tru
 .ring span{font-size:13px;font-weight:600}
 .ring small{font-size:11.5px;color:var(--muted)}
 .eval-score .ring b{height:132px;font:400 40px var(--serif)}
-.vit{display:flex;flex-wrap:wrap;gap:4px 0;margin:14px 0 0;font-size:13.5px;color:var(--ink-2)}
-.vit .sep{margin:0 8px;color:var(--muted)}
-@media (max-width:640px){.vit{flex-direction:column;gap:4px}.vit .sep{display:none}}
+.day-split{display:grid;grid-template-columns:1fr 1fr;margin-top:10px}
+.day-split .half{padding:0 0 0 24px;border-left:1px solid var(--grid)}
+.day-split .half:first-child{padding:0 24px 0 0;border-left:0}
+.day-split h4{margin:0 0 14px;font:600 15px var(--sans);display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.day-split h4 span{font:400 12px var(--mono);color:var(--muted)}
+@media (max-width:640px){.day-split{grid-template-columns:1fr}.day-split .half,.day-split .half:first-child{padding:16px 0 0;border-left:0}.day-split .half+.half{margin-top:18px;border-top:1px solid var(--grid)}}
+.rings.two{grid-template-columns:repeat(2,minmax(0,1fr));margin:0}
+.day-split .vit{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:6px;font-size:13.5px;color:var(--ink-2)}
+.day-split .vit li{margin:0;padding:0}
+.day-split .vit li::before{content:none}
 .eval{display:flex;gap:28px;align-items:flex-start;margin-top:10px}
 .eval-body{flex:1;min-width:0}
 @media (max-width:640px){.eval{flex-direction:column;align-items:center;gap:14px}.eval-body{width:100%}}
@@ -1249,23 +1256,39 @@ function renderSyncCard(){
   const cmp=(v,a,lowGood,unit)=> v==null||a==null?'':(()=>{ const d=v-a; if(Math.abs(d)<(unit==='steps'?250:1)) return 'about your average'; const up=d>0; return `${up?'▲':'▼'} ${unit==='steps'?Math.round(Math.abs(d)).toLocaleString():Math.round(Math.abs(d))} vs 90-day avg`; })();
   const stages = n ? ['deep','rem','core'].filter(k=>n[k]!=null).map(k=>`${k==='rem'?'REM':k[0].toUpperCase()+k.slice(1)} ${hrsMin(n[k]).replace(' 0',' ')}`).join(' · ') : '';
   const age=syncAge(), src=sourceNames();
-  const ys=D[stepsDay]||{}, exDay=[yest,today].find(d=>D[d]&&D[d].exercise!=null);
-  const rings=[
-    [n?n.sleep/7:0, n?hm(n.sleep):'—', 'Sleep', 'goal 7 h'],
-    [n&&n.deep!=null?n.deep/1.5:0, n&&n.deep!=null?hm(n.deep):'—', 'Deep sleep', 'goal 1 h 30 m'],
-    [stepsDay?ys.steps/STEP_GOAL:0, stepsDay?Math.round(ys.steps).toLocaleString():'—', stepsDay===today?'Steps today':'Steps yesterday', `goal ${STEP_GOAL.toLocaleString()}`],
-    [exDay?D[exDay].exercise/30:0, exDay?`${Math.round(D[exDay].exercise)} min`:'—', 'Exercise', 'goal 30 min'],
+  const ys=D[yest]||{}, dayName=d=>new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  const nightRings=[
+    [n?n.sleep/7:0, n?hm(n.sleep):'—', 'Total sleep', 'goal 7 h'],
+    [n&&n.deep!=null?n.deep/1.5:0, n&&n.deep!=null?hm(n.deep):'—', 'Deep sleep', 'goal 1h 30m'],
   ];
-  const vit=[
+  const dayRings=[
+    [ys.steps!=null?ys.steps/STEP_GOAL:0, ys.steps!=null?Math.round(ys.steps).toLocaleString():'—', 'Steps', `goal ${STEP_GOAL.toLocaleString()}`],
+    [ys.exercise!=null?ys.exercise/30:0, ys.exercise!=null?`${Math.round(ys.exercise)} min`:'—', 'Exercise', 'goal 30 min'],
+  ];
+  const nightInfo=[
+    n&&n.bed!=null?`Asleep <b>${clockOf(n.bed)}</b>${n.wake!=null?` → up <b>${clockOf(n.wake)}</b>`:''}`:'',
+    stages?esc(stages):'',
     rhr?`Resting heart rate <b>${Math.round(rhr[1])} bpm</b>${ago(rhr[0])?` <span class="muted">(${ago(rhr[0])})</span>`:''}`:'',
     hrv?`HRV <b>${Math.round(hrv[1])} ms</b>${ago(hrv[0])?` <span class="muted">(${ago(hrv[0])})</span>`:''}`:'',
-    n&&n.bed!=null?`Asleep <b>${clockOf(n.bed)}</b>${n.wake!=null?`, up <b>${clockOf(n.wake)}</b>`:''}`:'',
   ].filter(Boolean);
-  el.innerHTML=`<span class="eyebrow">Last night & yesterday · from Apple Health</span>
-    <div class="big">${n?`${hrsMin(n.sleep)} asleep <span class="muted" style="font:400 14px var(--sans)">${night===today?'last night':'night before last'}</span>`:'No sleep recorded last night'}</div>
-    ${stages?`<p class="muted" style="margin:0;font-size:14px">${stages}</p>`:''}
-    <div class="rings">${rings.map(([p,v,l,g])=>ring(p,v,l,g)).join('')}</div>
-    ${vit.length?`<p class="vit">${vit.map(x=>`<span>${x}</span>`).join('<span class="sep">·</span>')}</p>`:''}
+  const dayInfo=[
+    ys.active!=null?`Active calories <b>${Math.round(ys.active)} kcal</b>`:'',
+    D[today]&&D[today].steps!=null?`Today so far <b>${Math.round(D[today].steps).toLocaleString()} steps</b>`:'',
+  ].filter(Boolean);
+  el.innerHTML=`<span class="eyebrow">From Apple Health</span>
+    <div class="day-split">
+      <section class="half">
+        <h4>Last night <span>${night?new Date(dayISO(new Date(night+'T12:00:00')-864e5)+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'})+' night → '+dayName(night).replace(/,.*/,''):''}</span></h4>
+        ${n?'':'<p class="muted" style="font-size:14px;margin:0">No sleep recorded last night.</p>'}
+        <div class="rings two">${nightRings.map(([p,v,l,g])=>ring(p,v,l,g)).join('')}</div>
+        ${nightInfo.length?`<ul class="vit">${nightInfo.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}
+      </section>
+      <section class="half">
+        <h4>Yesterday <span>${dayName(yest)}</span></h4>
+        <div class="rings two">${dayRings.map(([p,v,l,g])=>ring(p,v,l,g)).join('')}</div>
+        ${dayInfo.length?`<ul class="vit">${dayInfo.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}
+      </section>
+    </div>
     <p class="sync-line ${age&&age.stale?'stale':''}"><i></i>${age?(age.stale?`Last sync ${age.when}. Your phone sends new data whenever it's unlocked.`:`Synced ${age.when}`):'Not synced yet'}${src.length?` · ${esc(src.join(', '))}`:''}</p>`;
 }
 const STEP_GOAL = 8000;
@@ -1279,36 +1302,37 @@ function ring(p, val, label, goal, size){
 }
 function renderEval(){
   const el=$('#t-eval'); if(!el) return;
-  const D=LIVE?LIVE.days:{}, days=wkDays(), today=days[6], full=days.filter(d=>d!==today);
+  // Rolling 30 days (not the calendar week), so the score doesn't dip every Monday
+  const D=LIVE?LIVE.days:{}, today=dayISO(Date.now()), days=[...Array(30)].map((_,i)=>dayISO(Date.now()-(29-i)*864e5)).filter(d=>D[d]), full=days.filter(d=>d!==today);
   const vals=(k,ds)=>(ds||days).map(d=>D[d]&&D[d][k]).filter(v=>v!=null).map(Number);
   const sl=vals('sleep'), st=vals('steps',full), ex=vals('exercise',full), bd=vals('bed');
   if(sl.length<3 && st.length<3){ el.hidden=true; return; }
   el.hidden=false;
   const clamp=v=>Math.max(0,Math.min(1,v));
-  const spread=bd.length>=3?Math.max(...bd)-Math.min(...bd):null;
+  const spread=bd.length>=3?Math.sqrt(mean(bd.map(v=>(v-mean(bd))**2))):null; // typical night-to-night swing (std dev, hours)
   const areas=[
     sl.length>=3 && {k:'Sleep', p:clamp(mean(sl)/7), v:`${hrsMin(mean(sl))} a night`, fix:`Sleep is what's holding you back most. You're getting about ${hrsMin(mean(sl))} a night against a 7-hour goal. Aim for lights out 30 minutes earlier this week.`},
-    spread!=null && {k:'Sleep schedule', p:clamp(1-(spread-1)/4), v:`bedtime varies ${Math.round(spread)} h`, fix:`Your schedule is the weakest area. Bedtimes moved by ${Math.round(spread)} hours this week. Pick one bedtime and keep it, even on weekends.`},
+    spread!=null && {k:'Sleep schedule', p:clamp(1-(spread-0.5)/1.5), v:`bedtime ±${spread<1?Math.round(spread*60)+' min':spread.toFixed(1)+' h'}`, fix:`Your sleep schedule is the weakest area. Your bedtime typically swings by about ${hm(spread).replace(/^0h /,'')} from night to night. Pick one bedtime and keep it, even on weekends.`},
     st.length>=3 && {k:'Steps', p:clamp(mean(st)/STEP_GOAL), v:`${Math.round(mean(st)).toLocaleString()} a day`, fix:`Movement is the weakest area: about ${Math.round(mean(st)).toLocaleString()} steps a day against ${STEP_GOAL.toLocaleString()}. A walk after each meal closes most of that gap.`},
     ex.length>=3 && {k:'Exercise', p:clamp(mean(ex)/30), v:`${Math.round(mean(ex))} min a day`, fix:`Exercise is the weakest area at ${Math.round(mean(ex))} minutes a day. Getting to all 5 gym days gets you past 30.`},
   ].filter(Boolean);
   const score=Math.round(mean(areas.map(a=>a.p))*100);
-  const verdict = score>=85?'Strong week':score>=65?'Solid week, room to improve':score>=45?'Mixed week':'Tough week';
+  const verdict = score>=85?'Strong':score>=65?'Solid, with room to improve':score>=45?'Mixed':'Needs work';
   const worst=[...areas].sort((a,b)=>a.p-b.p)[0];
   const good=areas.filter(a=>a.p>=1).map(a=>a.k.toLowerCase());
   const list=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' and '+a[a.length-1];
   const iss=typeof issues!=='undefined'?issues:[], hi=iss.filter(i=>i.s==='serious').length, mid=iss.filter(i=>i.s==='warning').length;
-  el.innerHTML=`<span class="eyebrow">Overall · last 7 days</span>
+  el.innerHTML=`<span class="eyebrow">Overall · last 30 days${days.length<30?` (${days.length} days of data so far)`:''}</span>
     <div class="eval">
       <div class="eval-score">${ring(score/100, String(score), 'out of 100', 'habits score', 132)}</div>
       <div class="eval-body">
         <div class="big" style="margin:0 0 6px">${verdict}</div>
-        <p style="margin:0 0 14px;font-size:14.5px">${good.length===areas.length?'Every area hit its goal this week. Keep it going.':`${good.length?`You hit your ${esc(list(good))} goal${good.length>1?'s':''}. `:''}${esc(worst.fix)}`}</p>
+        <p style="margin:0 0 14px;font-size:14.5px">${good.length===areas.length?'Every area is at its goal. Keep it going.':`${good.length?`You hit your ${esc(list(good))} goal${good.length>1?'s':''}. `:''}${esc(worst.fix)}`}</p>
         <div class="eval-rows">${areas.map(a=>`<div class="eval-row"><span class="n">${esc(a.k)}</span><span class="bar"><i class="${a.p>=1?'full':a.p>=0.7?'near':'low'}" style="width:${Math.round(a.p*100)}%"></i></span><span class="v">${esc(a.v)}</span></div>`).join('')}</div>
         ${iss.length?`<a class="eval-med" href="#health">Medical: ${hi?`<b>${hi} high priority</b>`:''}${hi&&mid?', ':''}${mid?`${mid} need${mid===1?'s':''} attention`:''}${!hi&&!mid?'nothing urgent':''} · see My health →</a>`:''}
       </div>
     </div>
-    <p class="muted" style="font-size:12px;margin:12px 0 0">The habits score averages how close you are to your sleep, schedule, steps and exercise goals. It's based on your watch and Eight Sleep only, not your lab results.</p>`;
+    <p class="muted" style="font-size:12px;margin:12px 0 0">Your habits score is the average of how close you are to your sleep, sleep schedule, steps and exercise goals over a rolling 30 days, so it doesn't reset each week. It uses only your watch and Eight Sleep data, not your lab results.</p>`;
 }
 const wkDays = () => [...Array(7)].map((_,i)=>dayISO(Date.now()-(6-i)*864e5));
 const dowOf = d => new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'});
