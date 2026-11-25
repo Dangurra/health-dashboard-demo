@@ -27,6 +27,7 @@
 </div></div>
 <div class="ctl">Live demo · synthetic data · <kbd>H</kbd> hides this</div>
 <script>
+  { const q=new URLSearchParams(location.search); if(q.has('bare')) document.body.classList.add('bare'); if(q.get('only')) document.body.classList.add('only-'+q.get('only')); }
   frameApp(document.getElementById('app'), true);
   // Status-bar clock shows the real time
   const c=document.getElementById('clock'), tick=()=>{ const d=new Date(); c.textContent=`${d.getHours()%12||12}:${String(d.getMinutes()).padStart(2,'0')}`; };
