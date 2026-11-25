@@ -1,0 +1,6 @@
+{
+  "functions": { "api/import.js": { "maxDuration": 20 } },
+  "headers": [
+    { "source": "/(.*)", "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }] }
+  ]
+}
