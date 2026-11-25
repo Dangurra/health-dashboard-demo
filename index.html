@@ -168,9 +168,9 @@ input[type=search]{font:inherit;padding:7px 11px;border-radius:9px;border:1px so
 .dots .end.r{text-align:right}
 .dots fieldset{border:0;margin:0;padding:0;display:flex;gap:8px;flex:1;justify-content:space-between;max-width:250px}
 .dot{position:relative}
-.dot input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
-.dot span{display:block;width:30px;height:30px;border-radius:50%;border:2px solid var(--axis);background:var(--surface);transition:transform .08s,background .08s}
-.dot input:hover + span{transform:scale(1.1);border-color:var(--ink-2)}
+.dot input{position:absolute;inset:0;z-index:1;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.dot span{display:block;width:30px;height:30px;pointer-events:none;border-radius:50%;border:2px solid var(--axis);background:var(--surface);transition:transform .08s,background .08s}
+.dot:hover span{transform:scale(1.1);border-color:var(--ink-2)}
 .dot input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px}
 .dot input:checked + span{border-color:transparent}
 .dot.v1 input:checked + span{background:var(--critical)}
@@ -558,7 +558,7 @@ input[type=search]:focus,input[type=date]:focus,textarea:focus,.add-row input:fo
 .stepper span{font-weight:400;font-size:13px}
 .chk input,.shop-item input{accent-color:var(--action)}
 .dot span{border-width:1.5px;border-color:var(--line)}
-.dot input:hover + span{border-color:var(--ink)}
+.dot:hover span{border-color:var(--ink)}
 .dot input:focus-visible + span{outline-color:var(--action)}
 .ex-step .n1{border-radius:0;background:var(--highlight);color:#111;font-family:var(--mono);font-weight:400}
 .wd .done{border-radius:0;background:var(--action)}
