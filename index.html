@@ -732,7 +732,7 @@ nav.tabs a:not([aria-current=page]):hover,.subtabs button:not([aria-selected=tru
 .eval-body{flex:1;min-width:0}
 @media (max-width:640px){.eval{flex-direction:column;align-items:center;gap:14px}.eval-body{width:100%}}
 .eval-rows{display:grid;gap:9px}
-.eval-row{display:grid;grid-template-columns:120px 1fr 140px;gap:12px;align-items:center;font-size:13.5px}
+.eval-row{display:grid;grid-template-columns:120px 1fr 190px;gap:12px;align-items:center;font-size:13.5px}
 @media (max-width:640px){.eval-row{grid-template-columns:1fr auto;gap:5px 12px}.eval-row .bar{grid-column:1/-1;grid-row:2}.eval-row .v{text-align:right;font-size:12.5px}.eval-score .ring small{display:none}}
 .eval-row .n{font-weight:600}
 .eval-row .v{color:var(--ink-2)}
@@ -1262,7 +1262,7 @@ function renderSyncCard(){
     [n&&n.deep!=null?n.deep/1.5:0, n&&n.deep!=null?hm(n.deep):'—', 'Deep sleep', 'goal 1h 30m'],
   ];
   const dayRings=[
-    [ys.steps!=null?ys.steps/STEP_GOAL:0, ys.steps!=null?Math.round(ys.steps).toLocaleString():'—', 'Steps', `goal ${STEP_GOAL.toLocaleString()}`],
+    [ys.steps!=null?ys.steps/stepGoal(yest):0, ys.steps!=null?Math.round(ys.steps).toLocaleString():'—', 'Steps', `goal ${stepGoal(yest).toLocaleString()}`],
     [ys.exercise!=null?ys.exercise/30:0, ys.exercise!=null?`${Math.round(ys.exercise)} min`:'—', 'Exercise', 'goal 30 min'],
   ];
   const nightInfo=[
@@ -1291,13 +1291,20 @@ function renderSyncCard(){
     </div>
     <p class="sync-line ${age&&age.stale?'stale':''}"><i></i>${age?(age.stale?`Last sync ${age.when}. Your phone sends new data whenever it's unlocked.`:`Synced ${age.when}`):'Not synced yet'}${src.length?` · ${esc(src.join(', '))}`:''}</p>`;
 }
-const STEP_GOAL = 8000;
+// Follows the 'Move more' plan: 7,000 to start, +500 every two weeks, up to 10,000
+const STEP_PLAN = {base:7000, step:500, every:14, cap:10000};
+function stepGoal(d){
+  let st; try{ st=wtGoal.startDate; }catch(e){}
+  if(!st) return STEP_PLAN.cap;
+  const n=Math.floor((new Date((d||dayISO(Date.now()))+'T12:00:00')-new Date(st+'T12:00:00'))/864e5);
+  return Math.min(STEP_PLAN.cap, STEP_PLAN.base+Math.max(0,Math.floor(n/STEP_PLAN.every))*STEP_PLAN.step);
+}
 const hm = h => { const m=Math.round(h*60); return `${Math.floor(m/60)}h ${String(m%60).padStart(2,'0')}m`; };
 function ring(p, val, label, goal, size){
   size=size||92; const r=size/2-6, c=2*Math.PI*r, f=Math.max(0,Math.min(1,p||0));
   const cls = !p ? 'none' : f>=1 ? 'full' : f>=0.7 ? 'near' : 'low';
-  return `<div class="ring ${cls}" role="img" aria-label="${esc(label)}: ${esc(val)}, ${Math.round((p||0)*100)}% of ${esc(goal)}">
-    <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true"><circle class="trk" cx="${size/2}" cy="${size/2}" r="${r}"/><circle class="arc" cx="${size/2}" cy="${size/2}" r="${r}" stroke-dasharray="${(c*f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${size/2} ${size/2})"/></svg>
+  return `<div class="ring ${cls}">
+    <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="${esc(label)}: ${esc(val)}, ${Math.round((p||0)*100)}% of ${esc(goal)}"><circle class="trk" cx="${size/2}" cy="${size/2}" r="${r}"/><circle class="arc" cx="${size/2}" cy="${size/2}" r="${r}" stroke-dasharray="${(c*f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${size/2} ${size/2})"/></svg>
     <b>${esc(val)}</b><span>${esc(label)}</span><small>${esc(goal)}</small></div>`;
 }
 function renderEval(){
@@ -1313,7 +1320,7 @@ function renderEval(){
   const areas=[
     sl.length>=3 && {k:'Sleep', p:clamp(mean(sl)/7), v:`${hrsMin(mean(sl))} a night`, fix:`Sleep is what's holding you back most. You're getting about ${hrsMin(mean(sl))} a night against a 7-hour goal. Aim for lights out 30 minutes earlier this week.`},
     spread!=null && {k:'Sleep schedule', p:clamp(1-(spread-0.5)/1.5), v:`bedtime ±${spread<1?Math.round(spread*60)+' min':spread.toFixed(1)+' h'}`, fix:`Your sleep schedule is the weakest area. Your bedtime typically swings by about ${hm(spread).replace(/^0h /,'')} from night to night. Pick one bedtime and keep it, even on weekends.`},
-    st.length>=3 && {k:'Steps', p:clamp(mean(st)/STEP_GOAL), v:`${Math.round(mean(st)).toLocaleString()} a day`, fix:`Movement is the weakest area: about ${Math.round(mean(st)).toLocaleString()} steps a day against ${STEP_GOAL.toLocaleString()}. A walk after each meal closes most of that gap.`},
+    st.length>=3 && {k:'Steps', p:clamp(mean(full.filter(d=>D[d].steps!=null).map(d=>D[d].steps/stepGoal(d)))), v:`${Math.round(mean(st)).toLocaleString()} a day · goal ${stepGoal().toLocaleString()}`, fix:`Movement is the weakest area: about ${Math.round(mean(st)).toLocaleString()} steps a day against your current goal of ${stepGoal().toLocaleString()}. A walk after each meal closes most of that gap.`},
     ex.length>=3 && {k:'Exercise', p:clamp(mean(ex)/30), v:`${Math.round(mean(ex))} min a day`, fix:`Exercise is the weakest area at ${Math.round(mean(ex))} minutes a day. Getting to all 5 gym days gets you past 30.`},
   ].filter(Boolean);
   const score=Math.round(mean(areas.map(a=>a.p))*100);
@@ -1332,7 +1339,7 @@ function renderEval(){
         ${iss.length?`<a class="eval-med" href="#health">Medical: ${hi?`<b>${hi} high priority</b>`:''}${hi&&mid?', ':''}${mid?`${mid} need${mid===1?'s':''} attention`:''}${!hi&&!mid?'nothing urgent':''} · see My health →</a>`:''}
       </div>
     </div>
-    <p class="muted" style="font-size:12px;margin:12px 0 0">Your habits score is the average of how close you are to your sleep, sleep schedule, steps and exercise goals over a rolling 30 days, so it doesn't reset each week. It uses only your watch and Eight Sleep data, not your lab results.</p>`;
+    <p class="muted" style="font-size:12px;margin:12px 0 0">Your habits score is the average of how close you are to your sleep, sleep schedule, steps and exercise goals over a rolling 30 days, so it doesn't reset each week. Your step goal follows your Move more plan and goes up every two weeks. It uses only your watch and Eight Sleep data, not your lab results.</p>`;
 }
 const wkDays = () => [...Array(7)].map((_,i)=>dayISO(Date.now()-(6-i)*864e5));
 const dowOf = d => new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'});
@@ -1354,7 +1361,7 @@ function renderWeekCard(){
     const segs=n.sleep==null?[]:hasStages?[['s-core',+n.core||0],['s-rem',+n.rem||0],['s-deep',+n.deep||0]]:[['s-core',+n.sleep]];
     return {x:dowOf(d), label:n.sleep!=null?(+n.sleep).toFixed(1):null, segs, title:n.sleep!=null?`${fmtD(d)}: ${hrsMin(n.sleep)} asleep`:`${fmtD(d)}: no sleep data`}; });
   const stepDays=days.filter(d=>D[d]&&D[d].steps!=null), full=stepDays.filter(d=>d!==today), avgSteps=mean(full.map(d=>+D[d].steps));
-  const maxSt=Math.max(STEP_GOAL*1.15,...stepDays.map(d=>+D[d].steps*1.12));
+  const SG=stepGoal(), maxSt=Math.max(SG*1.15,...stepDays.map(d=>+D[d].steps*1.12));
   const stepCols=days.map(d=>{ const v=D[d]&&D[d].steps; return {x:d===today?'Today':dowOf(d), label:v!=null?(v>=1000?(v/1000).toFixed(1)+'k':String(Math.round(v))):null, segs:v!=null?[[d===today?'s-steps part':'s-steps',+v]]:[], title:v!=null?`${fmtD(d)}: ${Math.round(v).toLocaleString()} steps${d===today?' so far':''}`:''}; });
   const beds=nights.map(d=>D[d].bed).filter(v=>v!=null).map(Number), ex=full.map(d=>D[d].exercise).filter(v=>v!=null).map(Number),
         act=full.map(d=>D[d].active).filter(v=>v!=null).map(Number), resp=days.map(d=>D[d]&&D[d].resp).filter(v=>v!=null).map(Number);
@@ -1363,7 +1370,7 @@ function renderWeekCard(){
   const tips=[];
   if(beds.length>=4 && Math.max(...beds)-Math.min(...beds)>=2) tips.push(`Your bedtime moved around by ${Math.round(Math.max(...beds)-Math.min(...beds))} hours this week (${clockOf(Math.min(...beds))} to ${clockOf(Math.max(...beds))}). Going to bed at the same time each night is one of the easiest ways to get more deep sleep.`);
   if(nights.length>=4 && short>=nights.length-1) tips.push(`${short} of ${nights.length} nights were under 7 hours. Short sleep raises blood pressure, triglycerides and appetite, so it works against your other goals.`);
-  if(avgSteps!=null && avgSteps<STEP_GOAL) tips.push(`You're averaging ${Math.round(avgSteps).toLocaleString()} steps, about ${Math.round((STEP_GOAL-avgSteps)/100)*100} short of ${STEP_GOAL.toLocaleString()}. A 15-minute walk after dinner adds roughly 1,800 steps.`);
+  if(avgSteps!=null && avgSteps<SG) tips.push(`You're averaging ${Math.round(avgSteps).toLocaleString()} steps, about ${Math.round((SG-avgSteps)/100)*100} short of your current goal of ${SG.toLocaleString()}. A 15-minute walk after dinner adds roughly 1,800 steps.`);
   const stats=[
     [beds.length?clockOf(mean(beds)):'—','average bedtime'],
     [ex.length?`${Math.round(mean(ex))} min`:'—','exercise a day'],
@@ -1374,7 +1381,7 @@ function renderWeekCard(){
     <div class="big">${avgSleep!=null?`${hrsMin(avgSleep)} of sleep a night`:'No sleep recorded this week'}</div>
     <div class="wk-grid">
       <div><div class="wk-h"><b>Sleep</b><span class="legend" style="margin:0"><span><i class="lg s-deep"></i>Deep</span><span><i class="lg s-rem"></i>REM</span><span><i class="lg s-core"></i>Core</span><span><i class="gl"></i>7 h goal</span></span></div>${barChart(sleepCols,maxS,7,'7 h')}</div>
-      <div><div class="wk-h"><b>Steps</b><span class="legend" style="margin:0">${avgSteps!=null?`<span>avg ${Math.round(avgSteps).toLocaleString()} a day</span>`:''}<span><i class="gl"></i>${STEP_GOAL.toLocaleString()} goal</span></span></div>${barChart(stepCols,maxSt,STEP_GOAL,(STEP_GOAL/1000)+'k goal')}</div>
+      <div><div class="wk-h"><b>Steps</b><span class="legend" style="margin:0">${avgSteps!=null?`<span>avg ${Math.round(avgSteps).toLocaleString()} a day</span>`:''}<span><i class="gl"></i>${SG.toLocaleString()} goal</span></span></div>${barChart(stepCols,maxSt,SG,'')}</div>
     </div>
     <div class="wt-stats" style="margin:16px 0 0">${stats.map(([b,l])=>`<div><b>${esc(b)}</b><span>${esc(l)}</span></div>`).join('')}</div>
     ${tips.length?`<p style="margin:14px 0 0;font-size:14px">💡 ${esc(tips[0])}</p>`:''}`;
@@ -1678,6 +1685,14 @@ const GLOSS = [
  [`Walking heart rate`, `Activity & sleep`, `Your average heart rate during everyday walking. When it falls over time, fitness is improving.`, `About 111 bpm (last 90 days).`, `warning`],
  [`Cardio fitness (VO₂ max)`, `Activity & sleep`, `How well your body uses oxygen during exercise. It is one of the strongest predictors of long-term health. Apple Watch estimates it during outdoor walks and runs, and alerts you when it is low for your age.`, `Your Watch sent a "Low Cardio Fitness" alert in Aug 2025.`, `warning`],
  [`Deep sleep`, `Activity & sleep`, `The most restorative sleep stage, when the body repairs tissue and resets blood sugar and appetite hormones. Short sleep cuts deep sleep first.`, `About 1.2 h/night, down from about 1.6 h in 2022.`, `warning`],
+ [`Habits score`, `Your scores`, `A 0–100 summary of your day-to-day habits over a rolling 30 days. It averages four parts equally: sleep (hours against 7), sleep schedule (how steady your bedtime is), steps (against your plan's goal for each day) and exercise (minutes against 30). Each part is capped at 100%, so beating one goal can't hide another. It uses only your watch and Eight Sleep data, never your lab results.`, ``, ``],
+ [`Sleep schedule (bedtime consistency)`, `Activity & sleep`, `How much your bedtime moves from night to night, measured as the typical swing (standard deviation). Within ±30 minutes scores full marks, and ±2 hours or more scores zero. A steady bedtime keeps your body clock in sync, which improves deep sleep, mood, appetite and blood sugar, even when total hours stay the same.`, ``, ``],
+ [`REM sleep`, `Activity & sleep`, `The dreaming stage, when the brain sorts memories and processes emotions. It comes in longer stretches toward morning, so cutting sleep short or waking early loses REM first. Adults usually get about 1.5–2 hours, roughly 20–25% of the night.`, ``, ``],
+ [`Core sleep`, `Activity & sleep`, `Apple's name for light sleep (stages N1–N2). It's most of the night, usually about half or more. It's still useful sleep: the body lowers heart rate and temperature, and the brain moves between deep and REM sleep through it.`, ``, ``],
+ [`Daily steps`, `Activity & sleep`, `Every step your iPhone or Apple Watch counts in a day. Steps are the simplest measure of everyday movement. More daily walking lowers triglycerides, blood sugar and blood pressure, and raises HDL. Your plan starts at 7,000 a day and adds 500 every two weeks, up to 10,000. Today's step goal follows that plan, so it goes up as you do.`, ``, ``],
+ [`Exercise minutes`, `Activity & sleep`, `Minutes your Apple Watch counted as brisk activity: about the effort of a fast walk or harder. 30 minutes a day (150 a week) is the standard heart-health target. Gym workouts and incline treadmill walks both count.`, ``, ``],
+ [`Active calories`, `Activity & sleep`, `Calories you burned by moving, on top of what your body burns at rest. Apple Watch estimates it from your heart rate and motion. It's useful for comparing days, but not exact enough to count against what you eat.`, ``, ``],
+ [`Breathing rate (asleep)`, `Activity & sleep`, `Breaths per minute while you sleep, measured by Eight Sleep and Apple Watch. A normal adult rate is about 12–20. It stays very steady for each person, so a jump of 2–3 breaths above your usual can be an early sign of illness, poor recovery or a breathing problem during sleep.`, ``, ``],
 
  // History
  [`Allergic rhinitis`, `History & other findings`, `Hay fever: sneezing, congestion and a runny nose from allergies, often worse in spring.`, `Seasonal since 2014. You take cetirizine as needed.`, `info`],
@@ -2384,6 +2399,7 @@ function renderToday(){
   $('#t-week').innerHTML = `<span class="eyebrow">This week</span><div class="stat3 grow"><div><b>${gd}/5</b><span>workouts</span></div><div><b>${wk}/7</b><span>check-ins</span></div><div><b>${shopGot}/${shopAll}</b><span>groceries</span></div></div><div class="actions"><a class="btn ghost sm" href="#gym" style="text-decoration:none">Gym</a><a class="btn ghost sm" href="#meals" style="text-decoration:none">Meals</a></div>`;
   $('#t-prio').innerHTML = `<span class="eyebrow">Top priorities</span>${issues.slice(0,4).map((i,k)=>`<a class="prio-row" href="#health" data-issue="${k}"><span class="pill ${i.s}" style="flex:none"><i></i>${sLabel[i.s]}</span><div><div class="prio-t">${i.t}</div><div class="prio-m">${i.m}</div></div></a>`).join('')}<div class="actions" style="margin-top:4px"><a class="btn ghost sm" href="#health" style="text-decoration:none">See all ${issues.length} issues</a></div>`;
   $('#t-next').innerHTML = `<span class="eyebrow">Coming up</span>${tl.slice(0,3).map(([w,t])=>`<div style="font-size:14px;padding:6px 0;border-top:1px solid var(--grid)"><div style="font-weight:600">${w}</div><div class="muted">${t.replace(/<[^>]+>/g,'')}</div></div>`).join('')}<div class="actions"><a class="btn ghost sm" href="#health" data-anchor="followups" style="text-decoration:none">All follow-ups</a></div>`;
+  if(window.glossDecorate) window.glossDecorate();
 }
 document.addEventListener('click', e=>{
   const a=e.target.closest('[data-act="checkin"]'); if(a){ openCheckin(); return; }
@@ -2437,7 +2453,15 @@ setTimeout(()=>{
     ['HRV (heart rate variability)', String.raw`\bHRV\b|heart rate variability`],
     ['Walking heart rate', String.raw`walking heart rate`],
     ['Cardio fitness (VO₂ max)', String.raw`cardio(?:vascular)? fitness|VO₂ max`],
-    ['Deep sleep', String.raw`deep sleep`],
+    ['Habits score', String.raw`habits score`],
+    ['Sleep schedule (bedtime consistency)', String.raw`sleep schedule|bedtime consistency`],
+    ['Deep sleep', String.raw`deep sleep|\bDeep\b`],
+    ['REM sleep', String.raw`\bREM\b`],
+    ['Core sleep', String.raw`core sleep|\bCore\b`],
+    ['Exercise minutes', String.raw`exercise minutes|\bExercise\b`],
+    ['Active calories', String.raw`active calories`],
+    ['Breathing rate (asleep)', String.raw`breathing rate|respiratory rate`],
+    ['Daily steps', String.raw`\bsteps\b`],
     ['Allergic rhinitis', String.raw`allergic rhinitis`],
     ['Appendectomy', String.raw`appendectomy`],
   ].filter(([t])=>G[t]);
@@ -2445,7 +2469,7 @@ setTimeout(()=>{
   const termFor = m => { for(let i=1;i<m.length;i++) if(m[i]!==undefined) return ALIAS[i-1][0]; };
 
   const ROOTS = ['#kpis','#issue-list','#bigpic','#tl','#trend-grid','#wear-grid','#diagnoses','#hist'];
-  const SKIP = 'svg,button,input,textarea,select,.term,.chart,.pill,#gl-pop,script,style,.acc-m,.kpi .note,.crit';
+  const SKIP = 'svg,button,input,textarea,select,.term,.chart,.pill,#gl-pop,script,style,.acc-m,.kpi .note,.crit,.eyebrow,.bars,.bar-x,.ring b,.ring small,.eval-row .v,.eval-med,.big';
   const blockOf = n => n.parentElement.closest('.card,details,.crit,.callout') || n.parentElement;
   function decorate(root){
     const used = new WeakMap(); // block -> Set(terms) so each term is underlined once per card
@@ -2469,6 +2493,9 @@ setTimeout(()=>{
     });
   }
   ROOTS.forEach(s=>{ const r=$(s); if(r) decorate(r); });
+  const doneRoots = new WeakSet(); // a card's first node changes whenever it re-renders
+  window.glossDecorate = () => ['#t-eval','#t-sync','#t-wk','#src-list'].forEach(s=>{ const r=$(s); if(!r || r.hidden || !r.firstChild || doneRoots.has(r.firstChild)) return; doneRoots.add(r.firstChild); decorate(r); });
+  window.glossDecorate();
 
   // popover
   const pop=document.createElement('div'); pop.id='gl-pop'; pop.setAttribute('role','dialog'); document.body.appendChild(pop);
